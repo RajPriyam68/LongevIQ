@@ -1,0 +1,23 @@
+export enum UserRole {
+  USER = 'USER',
+  DOCTOR = 'DOCTOR',
+  ADMIN = 'ADMIN',
+}
+
+export enum ReportStatus {
+  UPLOADED = 'UPLOADED',
+  PROCESSING = 'PROCESSING',
+  PARSED = 'PARSED',
+  FAILED = 'FAILED',
+}
+
+export enum HealthMetricType {
+  BLOOD_PRESSURE = 'BLOOD_PRESSURE',
+  HEART_RATE = 'HEART_RATE',
+  WEIGHT = 'WEIGHT',
+  BLOOD_GLUCOSE = 'BLOOD_GLUCOSE',
+  BMI = 'BMI',
+  SLEEP_HOURS = 'SLEEP_HOURS',
+  STEPS = 'STEPS',
+  BODY_TEMPERATURE = 'BODY_TEMPERATURE',
+}

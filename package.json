@@ -1,0 +1,34 @@
+{
+  "name": "longeviq",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LongevIQ - Your AI Health Copilot for a Longer, Healthier Life.",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @longeviq/api\" \"npm run dev -w @longeviq/web\"",
+    "build": "npm run build -w @longeviq/shared && npm run build -w @longeviq/api && npm run build -w @longeviq/web",
+    "typecheck": "npm run typecheck -w @longeviq/shared && npm run typecheck -w @longeviq/api && npm run typecheck -w @longeviq/web",
+    "lint": "npm run lint -w @longeviq/api && npm run lint -w @longeviq/web",
+    "test": "npm run test -w @longeviq/api && npm run test -w @longeviq/web",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2"
+  }
+}

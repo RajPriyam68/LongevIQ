@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.next
+out
+coverage
+package-lock.json
+docker
+.github
+docs
+*.md
+public
+apps/web/public
