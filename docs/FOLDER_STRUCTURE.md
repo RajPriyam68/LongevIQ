@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 0)
+## Current Structure (Sprint 1)
 
 ```
 .
@@ -16,32 +16,60 @@ This document tracks the repository structure. It is updated at the end of every
 ├── README.md
 ├── apps/
 │   ├── api/
-│   │   ├── .env.example               # API env template
+│   │   ├── .env.example               # API env template (Sprint 1 vars included)
 │   │   ├── .env.test.example
 │   │   ├── Dockerfile
 │   │   ├── package.json
 │   │   ├── prisma/
 │   │   │   ├── .env.example           # DATABASE_URL template
-│   │   │   └── schema.prisma          # Datasource + generators (models from Sprint 1)
+│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog
+│   │   │   ├── migrations/            # add_auth_and_audit (20260807021245)
+│   │   │   └── seed.ts                # Demo users (admin/doctor/user)
 │   │   ├── src/
 │   │   │   ├── app.ts                 # Express app factory
 │   │   │   ├── server.ts              # Bootstrap + graceful shutdown
 │   │   │   ├── config/
 │   │   │   │   └── env.ts             # zod-validated environment
+│   │   │   ├── container.ts           # Composition root (manual DI)
+│   │   │   ├── db/
+│   │   │   │   └── prisma.ts          # PrismaClient singleton
 │   │   │   ├── middleware/
+│   │   │   │   ├── auth.ts            # requireAuth / optionalAuth / requireRoles
 │   │   │   │   ├── error-handler.ts   # Central error mapping
-│   │   │   │   └── not-found.ts       # 404 for unknown routes
+│   │   │   │   ├── not-found.ts       # 404 for unknown routes
+│   │   │   │   └── validate.ts        # validateBody (zod)
 │   │   │   ├── modules/
-│   │   │   │   └── health/            # Feature module exemplar
-│   │   │   │       ├── health.controller.ts
-│   │   │   │       ├── health.routes.ts
-│   │   │   │       └── health.service.ts
+│   │   │   │   ├── auth/              # Authentication module
+│   │   │   │   │   ├── auth.controller.ts
+│   │   │   │   │   ├── auth.repository.ts
+│   │   │   │   │   ├── auth.repository.types.ts
+│   │   │   │   │   ├── auth.routes.ts
+│   │   │   │   │   ├── auth.service.ts
+│   │   │   │   │   ├── email.service.ts
+│   │   │   │   │   ├── oauth.service.ts
+│   │   │   │   │   ├── password.service.ts
+│   │   │   │   │   └── token.service.ts
+│   │   │   │   ├── health/            # Feature module exemplar
+│   │   │   │   │   ├── health.controller.ts
+│   │   │   │   │   ├── health.routes.ts
+│   │   │   │   │   └── health.service.ts
+│   │   │   │   └── users/             # Profile + password endpoints
+│   │   │   │       ├── users.controller.ts
+│   │   │   │       └── users.routes.ts
+│   │   │   ├── types/
+│   │   │   │   └── express.d.ts       # Request.user augmentation
 │   │   │   └── utils/
 │   │   │       ├── api-response.ts    # Uniform API envelope
 │   │   │       ├── app-error.ts       # Operational error model
+│   │   │       ├── async-handler.ts   # Express 4 async error wrapper
 │   │   │       └── logger.ts          # pino logger
 │   │   ├── tests/
+│   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
+│   │   │   ├── fakes.ts               # Fake repository + email service
 │   │   │   ├── health.spec.ts         # API tests (supertest)
+│   │   │   ├── integration/
+│   │   │   │   ├── auth.integration.spec.ts  # DB-backed API tests
+│   │   │   │   └── global-setup.ts    # migrates test DB before run
 │   │   │   └── setup.ts               # Test env pinning
 │   │   ├── tsconfig.json
 │   │   ├── tsconfig.test.json
@@ -62,9 +90,19 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── not-found.tsx
 │       │   │   ├── page.tsx           # Landing page
 │       │   │   ├── robots.ts
-│       │   │   └── sitemap.ts
+│       │   │   ├── sitemap.ts
+│       │   │   ├── account/
+│       │   │   │   └── page.tsx       # Profile + change password (protected)
+│       │   │   └── auth/
+│       │   │       ├── callback/page.tsx       # Google OAuth return
+│       │   │       ├── login/page.tsx
+│       │   │       ├── register/page.tsx
+│       │   │       └── verify-email/page.tsx
 │       │   ├── components/
 │       │   │   ├── api-status.tsx     # Server component -> /api/v1/health
+│       │   │   ├── auth/
+│       │   │   │   ├── guest-only.tsx
+│       │   │   │   └── require-auth.tsx
 │       │   │   ├── landing/
 │       │   │   │   ├── cta-section.tsx
 │       │   │   │   ├── features.tsx
@@ -73,7 +111,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── layout/
 │       │   │   │   ├── medical-disclaimer.tsx
 │       │   │   │   ├── site-footer.tsx
-│       │   │   │   ├── site-header.tsx
+│       │   │   │   ├── site-header.tsx          # Auth-aware nav
 │       │   │   │   └── theme-toggle.tsx
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
@@ -88,10 +126,16 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │       ├── skeleton.tsx
 │       │   │       └── sonner.tsx
 │       │   ├── lib/
-│       │   │   ├── api-client.ts      # Axios instance + error mapping
+│       │   │   ├── api-client.ts      # Axios + refresh-token interceptor
+│       │   │   ├── api-client.spec.ts
+│       │   │   ├── auth-api.ts        # Typed auth endpoints
+│       │   │   ├── auth-store.ts      # Zustand persist (accessToken/user)
+│       │   │   ├── auth-store.spec.ts
 │       │   │   ├── constants.ts
 │       │   │   ├── utils.ts           # cn() helper
 │       │   │   └── utils.spec.ts
+│       │   ├── test/
+│       │   │   └── setup.ts           # DOM stubs for unit tests
 │       │   └── vitest.config.ts
 │       └── tsconfig.json
 ├── docker/
@@ -114,6 +158,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── constants/app.ts       # APP_NAME, MEDICAL_DISCLAIMER, ...
 │       │   ├── types/api.ts           # API envelope + pagination types
 │       │   ├── types/enums.ts         # UserRole, ReportStatus, HealthMetricType
+│       │   ├── types/user.ts          # PublicUser, AuthSession
+│       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   └── index.ts
 │       └── tsconfig.json
 └── tsconfig.base.json
@@ -121,8 +167,6 @@ This document tracks the repository structure. It is updated at the end of every
 
 ## Planned Growth
 
-- `apps/api/src/modules/auth`, `users`, `reports`, `metrics`, ... per Sprint.
-- `apps/api/prisma/migrations/` from Sprint 1.
+- `apps/api/src/modules/reports`, `metrics`, `ai`, ... per Sprint.
 - `apps/web/src/app/(dashboard)/...`, `apps/web/src/components/<feature>/...` from Sprint 2.
-- `packages/shared/src/validators/` from Sprint 1 (zod schemas shared web/api).
 - AI services (`apps/api/src/modules/ai/`) from Sprint 5.

@@ -1,6 +1,6 @@
 // LongevIQ Prisma schema
-// Datasource and generators. Models are added incrementally per Sprint.
-// Sprint 1: User, RefreshToken, etc.
+// Datasource, generators, and models.
+// Sprint 1: User, RefreshToken, EmailVerificationToken, AuditLog.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,4 +9,78 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  DOCTOR
+  ADMIN
+}
+
+model User {
+  id             String                    @id @default(cuid())
+  email          String                    @unique
+  passwordHash   String?
+  firstName      String
+  lastName       String
+  role           UserRole                  @default(USER)
+  emailVerified  Boolean                   @default(false)
+  isActive       Boolean                   @default(true)
+  avatarUrl      String?
+  oauthProvider  String?
+  oauthId        String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  refreshTokens            RefreshToken[]
+  emailVerificationTokens  EmailVerificationToken[]
+  auditLogs                AuditLog[]
+
+  @@index([oauthProvider, oauthId])
+}
+
+model RefreshToken {
+  id                 String    @id @default(cuid())
+  tokenHash          String    @unique
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  replacedByTokenId  String?
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String?
+  entityId  String?
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }

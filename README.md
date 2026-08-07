@@ -111,14 +111,31 @@ docker compose up -d --build
 Nginx (port 80) routes `/` to the web container and `/api/*` to the API container.
 See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 
+### Sprint 1 — Authentication & User Management
+
+- **API**: register, login, refresh (rotation + reuse detection), logout, email verification,
+  resend verification, Google OAuth, and current-user profile/password endpoints under
+  `/api/v1/auth` and `/api/v1/users`.
+- **Security**: argon2id password hashing, short-lived HS256 access JWTs, DB-backed opaque refresh
+  tokens stored in an httpOnly cookie, per-IP auth rate limiting, and audit logging for auth
+  events.
+- **Data model**: `User`, `RefreshToken`, `EmailVerificationToken`, `AuditLog` (Prisma migration
+  `20260807021245_add_auth_and_audit`).
+- **Frontend**: sign-in, register, verify-email, Google callback, and account pages; Zustand auth
+  store with persistence; axios client with single-flight refresh interceptor; auth-guarded
+  `/account`.
+- **Tests**: 20 API tests (unit + DB-backed integration) and 14 web tests.
+- **Demo accounts** (seed): `admin@longeviq.dev`, `doctor@longeviq.dev`, `demo@longeviq.dev`
+  (passwords documented in `apps/api/prisma/seed.ts`).
+
 ---
 
 ## Roadmap (Sprints)
 
 | Sprint | Scope                                                        |
 | ------ | ------------------------------------------------------------ |
-| 0      | Project planning & setup (this sprint)                       |
-| 1      | Authentication & user management                             |
+| 0      | Project planning & setup **(done)**                          |
+| 1      | Authentication & user management **(done)**                   |
 | 2      | Health dashboard                                             |
 | 3      | Medical report upload & management                           |
 | 4      | OCR + medical report parsing                                 |

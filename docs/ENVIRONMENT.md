@@ -15,6 +15,23 @@ missing required variables cause the process to **fail fast**.
 | `CORS_ORIGINS`           | no       | `http://localhost:3000`| Comma-separated allowed origins                        |
 | `RATE_LIMIT_WINDOW_MS`   | no       | `60000`                | Rate-limit window (ms)                                 |
 | `RATE_LIMIT_MAX`         | no       | `100`                  | Max requests per window per IP                         |
+| `DATABASE_URL`           | test/prod| `postgresql://longeviq:longeviq@localhost:5432/longeviq` | PostgreSQL connection string  |
+| `JWT_ACCESS_SECRET`      | prod     | auto-generated (dev/test) | HS256 signing secret for access tokens (min 32 chars) |
+| `JWT_ACCESS_TTL`         | no       | `15m`                  | Access-token lifetime (jose `ms` format)               |
+| `JWT_REFRESH_TTL_DAYS`   | no       | `7`                    | Refresh-token lifetime in days                         |
+| `FRONTEND_URL`           | no       | `http://localhost:3000`| Public web origin (verification links / OAuth redirects) |
+| `COOKIE_SECURE`          | no       | `false`                | Mark auth cookies `Secure` (set true behind HTTPS)     |
+| `GOOGLE_CLIENT_ID`       | no       | *(empty)*              | Google OAuth client id (empty disables Google sign-in) |
+| `GOOGLE_CLIENT_SECRET`   | no       | *(empty)*              | Google OAuth client secret                             |
+| `SMTP_HOST`              | no       | *(empty)*              | SMTP server for transactional email                    |
+| `SMTP_PORT`              | no       | `587`                  | SMTP port                                              |
+| `SMTP_SECURE`            | no       | `false`                | Use TLS on SMTP connection                             |
+| `SMTP_USER` / `SMTP_PASS`| no       | *(empty)*              | SMTP credentials                                       |
+| `EMAIL_FROM`             | no       | `LongevIQ <no-reply@longeviq.dev>` | From address for outgoing email         |
+
+> **Development email fallback.** When `SMTP_HOST` is unset, verification emails are logged to the
+> server console and the verification link is returned in the API response. This only happens when
+> `NODE_ENV !== 'production'`; production never returns verification URLs.
 
 ### Placeholders for upcoming Sprints
 
@@ -22,13 +39,6 @@ These are documented now for planning; they are consumed by later Sprints:
 
 | Variable               | Sprint | Purpose                        |
 | ---------------------- | ------ | ------------------------------ |
-| `DATABASE_URL`         | 1      | PostgreSQL connection string   |
-| `JWT_ACCESS_SECRET`    | 1      | Access-token signing secret    |
-| `JWT_REFRESH_SECRET`   | 1      | Refresh-token signing secret   |
-| `JWT_ACCESS_TTL`       | 1      | Access-token lifetime         |
-| `JWT_REFRESH_TTL`      | 1      | Refresh-token lifetime        |
-| `GOOGLE_CLIENT_ID`     | 1      | Google OAuth client id         |
-| `GOOGLE_CLIENT_SECRET` | 1      | Google OAuth client secret     |
 | `S3_BUCKET`            | 3      | Report storage bucket          |
 | `S3_REGION`            | 3      | S3 region                      |
 | `S3_ACCESS_KEY_ID`     | 3      | S3 credentials                 |

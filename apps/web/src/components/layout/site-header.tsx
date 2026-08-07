@@ -2,8 +2,12 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Activity, Menu, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Activity, LogOut, Menu, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { APP_NAME, APP_TAGLINE } from '@longeviq/shared';
+import { apiLogout } from '@/lib/auth-api';
+import { useAuthStore } from '@/lib/auth-store';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 
@@ -12,6 +16,64 @@ const NAV_ITEMS = [
   { label: 'How It Works', href: '#how-it-works' },
   { label: 'Disclaimer', href: '#disclaimer' },
 ];
+
+function AuthButtons({ compact = false }: { compact?: boolean }) {
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const clearSession = useAuthStore((state) => state.clearSession);
+  const [loggingOut, setLoggingOut] = React.useState(false);
+
+  const onLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await apiLogout();
+    } catch {
+      // Log out locally even if the server call fails.
+    } finally {
+      clearSession();
+      toast.success('Signed out.');
+      router.replace('/');
+    }
+  };
+
+  if (isAuthenticated && user) {
+    const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+    return (
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost" className="gap-2">
+          <Link href="/account">
+            <span className="flex size-6 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+              {initials}
+            </span>
+            <span className="max-w-28 truncate">{user.firstName}</span>
+          </Link>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onLogout}
+          disabled={loggingOut}
+          aria-label="Sign out"
+          title="Sign out"
+        >
+          <LogOut className="size-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={compact ? 'flex w-full flex-col gap-2' : 'flex items-center gap-2'}>
+      <Button asChild variant="ghost" className={compact ? 'w-full' : undefined}>
+        <Link href="/auth/login">Sign in</Link>
+      </Button>
+      <Button asChild className={compact ? 'w-full' : undefined}>
+        <Link href="/auth/register">Get Started</Link>
+      </Button>
+    </div>
+  );
+}
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -42,10 +104,10 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <div className="hidden md:block">
+            <AuthButtons />
+          </div>
           <ThemeToggle />
-          <Button asChild className="hidden md:inline-flex">
-            <Link href="#features">Get Started</Link>
-          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -74,11 +136,7 @@ export function SiteHeader() {
               </li>
             ))}
             <li>
-              <Button asChild className="w-full">
-                <Link href="#features" onClick={() => setMenuOpen(false)}>
-                  Get Started
-                </Link>
-              </Button>
+              <AuthButtons compact />
             </li>
           </ul>
         </nav>

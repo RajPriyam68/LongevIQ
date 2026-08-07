@@ -2,14 +2,24 @@ import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
 import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { notFoundHandler } from './middleware/not-found.js';
+import { requireAuth } from './middleware/auth.js';
+import { createContainer, type Container } from './container.js';
 import healthRoutes from './modules/health/health.routes.js';
+import { createAuthRouter } from './modules/auth/auth.routes.js';
+import { createUsersRouter } from './modules/users/users.routes.js';
 
-export function createApp(): Express {
+export interface AppOptions {
+  container?: Partial<Container>;
+}
+
+export function createApp(options: AppOptions = {}): Express {
+  const container = createContainer(options.container);
   const app = express();
 
   app.disable('x-powered-by');
@@ -35,6 +45,7 @@ export function createApp(): Express {
   );
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+  app.use(cookieParser());
 
   const apiLimiter = rateLimit({
     windowMs: env.RATE_LIMIT_WINDOW_MS,
@@ -51,6 +62,15 @@ export function createApp(): Express {
 
   const apiRouter = express.Router();
   apiRouter.use('/health', healthRoutes);
+  apiRouter.use(
+    '/auth',
+    createAuthRouter(container.authService, container.oauthService, container.tokenService),
+  );
+  apiRouter.use(
+    '/users',
+    requireAuth(container.tokenService),
+    createUsersRouter(container.authService),
+  );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);
 

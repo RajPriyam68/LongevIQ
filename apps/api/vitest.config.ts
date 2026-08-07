@@ -5,6 +5,7 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.spec.ts'],
     setupFiles: ['tests/setup.ts'],
+    globalSetup: ['tests/integration/global-setup.ts'],
     globals: false,
     reporters: ['default'],
   },

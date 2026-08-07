@@ -3,17 +3,25 @@
 LongevIQ follows defense-in-depth. This document records controls in place and the residual risks
 accepted with rationale.
 
-## Implemented Controls (Sprint 0)
+## Implemented Controls
 
 | Layer             | Control                                                            |
 | ----------------- | ------------------------------------------------------------------ |
 | Transport         | Nginx reverse proxy; HSTS-ready; TLS termination at the edge       |
 | Headers           | Helmet (CSP, X-Frame-Options, nosniff, etc.) on the API            |
 | CORS              | Allow-list via `CORS_ORIGINS`; credentials mode                    |
-| Rate limiting     | `express-rate-limit` on `/api` (configurable window/limit)         |
+| Rate limiting     | `express-rate-limit` on `/api` (configurable) and per-IP auth limiter (20 / 15 min) |
 | Payload limits    | JSON body capped at 2 MB; `413 PAYLOAD_TOO_LARGE`                  |
-| Secrets           | Env vars only; `.env*` gitignored; `.env.example` placeholders only|
-| Configuration     | zod-validated env; fail-fast on invalid config                     |
+| Passwords         | argon2id hashing (memoryCost 19456, timeCost 2, parallelism 1); no plaintext storage |
+| Access tokens     | Short-lived HS256 JWTs (`JWT_ACCESS_SECRET`, default 15 m); never stored server-side |
+| Refresh tokens    | Opaque 384-bit random values; SHA-256 hashed at rest; rotated on every refresh; reuse revokes the whole session family |
+| Session storage   | Refresh token in httpOnly `SameSite=Lax` cookie (`Secure` in production) |
+| Email verification| Token stored as SHA-256 hash with 24 h expiry; single use        |
+| Google OAuth      | Server-side code exchange; state validated with constant-time comparison; `lq_oauth_state` cookie is httpOnly + short-lived |
+| RBAC              | `requireRoles` middleware guards role-scoped routes                |
+| Audit logging     | `AuditLog` table records auth events (register, login, logout, verify, resend, password change) with actor + action + IP + user-agent |
+| Secrets           | Env vars only; `.env*` gitignored; `.env.example` placeholders only |
+| Configuration     | zod-validated env; fail-fast on invalid config; production requires `DATABASE_URL` + `JWT_ACCESS_SECRET` |
 | Logging           | pino redaction of `authorization`, `cookie`, passwords, tokens     |
 | Error handling    | Central handler; internal errors masked in production              |
 | XSS/SQLi          | Parameterized Prisma queries; React escapes output; Helmet CSP     |
@@ -26,14 +34,24 @@ accepted with rationale.
 3. cors (allow-list)
 4. express.json / urlencoded (2 MB limits)
 5. rate limiter on `/api`
-6. versioned routes
+6. versioned routes (auth router adds its own stricter limiter)
 7. not-found handler
 8. central error handler
 
+## Auth Threat Model
+
+- **Enumeration resistance**: login failures return the same `401` for unknown email and wrong
+  password; resend-verification silently succeeds for unknown/already-verified accounts; signup
+  reveals only whether the email is already registered.
+- **Refresh-token reuse**: an attacker replaying a rotated refresh token causes revocation of all
+  of the victim's sessions (family revocation).
+- **Password change** revokes every session.
+- **No secrets in tokens**: refresh tokens are random opaque strings, so they cannot be decoded or
+  forged offline.
+- **Timing-safe state checks** for OAuth CSRF protection.
+
 ## Upcoming Controls (per Sprint)
 
-- **Sprint 1**: password hashing (argon2id), JWT access + refresh tokens, RBAC middleware, Google
-  OAuth, email verification, refresh-token rotation + reuse detection.
 - **Sprint 3**: S3 presigned uploads, malware-scan hook, file-type allow-list, per-user report
   ownership checks.
 - **Sprint 5**: prompt-injection hardening, output filtering, disclaimers enforced at the AI layer.
@@ -43,9 +61,9 @@ accepted with rationale.
 
 ## Audit Logging
 
-Audit logging will be introduced with authenticated modules (Sprint 1). Design principles:
-immutable append-only store, event classification (AUTH, DATA, ADMIN), actor + resource +
-timestamp, and no sensitive payloads.
+Implemented in Sprint 1 via the `AuditLog` table. Design principles: append-only by policy (no
+update/delete flows expose it), event classification (`AUTH.*` actions), actor + resource +
+timestamp, IP + user-agent, and no sensitive payloads (passwords/tokens are never written).
 
 ## Dependency Notes
 
