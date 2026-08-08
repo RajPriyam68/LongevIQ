@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 1)
+## Current Endpoints (Sprint 2)
 
 ### Health check
 
@@ -224,6 +224,157 @@ sessions; the client must sign in again.
 
 **Errors**: `400 VALIDATION_ERROR` (incorrect current password).
 
+### Health metrics
+
+All endpoints require `Authorization: Bearer <accessToken>`. Metrics are scoped to the
+authenticated user — records belonging to other users are indistinguishable from missing ones
+(`404 NOT_FOUND`). The `unit` for each type is canonical (see `HEALTH_METRIC_META` in
+`packages/shared`).
+
+Supported metric types and ranges:
+
+| Type               | Label            | Unit    | Range        | Secondary (label)     |
+| ------------------ | ---------------- | ------- | ------------ | --------------------- |
+| `BLOOD_PRESSURE`   | Blood pressure   | mmHg    | 60–250       | Diastolic 40–150 (required) |
+| `HEART_RATE`       | Heart rate       | bpm     | 20–250       | —                     |
+| `WEIGHT`           | Weight           | kg      | 1–500        | —                     |
+| `BLOOD_GLUCOSE`    | Blood glucose    | mg/dL   | 20–600       | —                     |
+| `BMI`              | Body mass index  | kg/m²   | 10–80        | —                     |
+| `SLEEP_HOURS`      | Sleep            | hours   | 0–24         | —                     |
+| `STEPS`            | Steps            | steps   | 0–200000     | —                     |
+| `BODY_TEMPERATURE` | Body temperature | °C      | 30–45        | —                     |
+
+#### Create a metric
+
+`POST /api/v1/metrics`
+
+**Request body**
+
+```json
+{
+  "type": "BLOOD_PRESSURE",
+  "value": 120,
+  "valueSecondary": 80,
+  "recordedAt": "2026-08-07T08:30:00.000Z",
+  "notes": "Morning reading"
+}
+```
+
+`valueSecondary` is required for compound types (e.g. `BLOOD_PRESSURE`) and rejected for simple
+types. `recordedAt` and `notes` are optional; when `recordedAt` is omitted the server uses the
+current time.
+
+**Response 201**
+
+```json
+{
+  "success": true,
+  "data": {
+    "metric": {
+      "id": "met_...",
+      "type": "BLOOD_PRESSURE",
+      "value": 120,
+      "valueSecondary": 80,
+      "unit": "mmHg",
+      "recordedAt": "2026-08-07T08:30:00.000Z",
+      "notes": "Morning reading",
+      "createdAt": "2026-08-07T08:31:00.000Z",
+      "updatedAt": "2026-08-07T08:31:00.000Z"
+    }
+  }
+}
+```
+
+**Errors**: `400 VALIDATION_ERROR` (range/compound/format checks), `401 UNAUTHORIZED`.
+
+#### List metrics
+
+`GET /api/v1/metrics?type=WEIGHT&page=1&limit=20&sort=desc`
+
+Query params are all optional: `type`, `from`/`to` (ISO-8601 date-time), `page` (min 1), `limit`
+(1–100, default 20), `sort` (`asc`|`desc`, default `desc` by `recordedAt`).
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [ { "id": "met_...", "type": "WEIGHT", "value": 72.5, "unit": "kg", "...": "..." } ],
+    "pagination": { "page": 1, "limit": 20, "total": 42, "totalPages": 3 }
+  }
+}
+```
+
+#### Get a metric
+
+`GET /api/v1/metrics/:id`
+
+**Response 200**: `{ "success": true, "data": { "metric": { ... } } }`
+
+**Errors**: `404 NOT_FOUND` (does not exist or belongs to another user).
+
+#### Update a metric
+
+`PATCH /api/v1/metrics/:id`
+
+**Request body** (at least one field; omitted fields keep their current value; `valueSecondary`
+may be set to `null` to clear it)
+
+```json
+{ "value": 121, "notes": null }
+```
+
+**Response 200**: `{ "success": true, "data": { "metric": { ... } } }`
+
+**Errors**: `400 VALIDATION_ERROR`, `404 NOT_FOUND`.
+
+#### Delete a metric
+
+`DELETE /api/v1/metrics/:id`
+
+**Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
+**Errors**: `404 NOT_FOUND`.
+
+### Dashboard
+
+All endpoints require `Authorization: Bearer <accessToken>`.
+
+#### Dashboard overview
+
+`GET /api/v1/dashboard/overview`
+
+Aggregates the authenticated user's metrics: latest and previous measurement per type with the
+change (`delta`) between them, counts, and the 10 most recent measurements across all types.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "overview": {
+      "summary": [
+        {
+          "type": "WEIGHT",
+          "label": "Weight",
+          "unit": "kg",
+          "count": 2,
+          "latest": { "id": "met_...", "type": "WEIGHT", "value": 71.8, "unit": "kg", "..." : "..." },
+          "previous": { "id": "met_...", "type": "WEIGHT", "value": 72.5, "unit": "kg", "..." : "..." },
+          "delta": -0.7
+        }
+      ],
+      "recent": [ { "id": "met_...", "type": "BLOOD_PRESSURE", "value": 120, "..." : "..." } ]
+    }
+  }
+}
+```
+
+`delta` is `latest - previous` rounded to 2 decimal places, or `null` when the type has fewer than
+two measurements. `summary` always contains all 8 metric types.
+
 ### Not found
 
 Any unknown route returns:
@@ -256,11 +407,10 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- `GET /api/v1/dashboard/*` (Sprint 2)
 - `POST /api/v1/reports` + presigned uploads (Sprint 3)
 - `POST /api/v1/ai/chat` (Sprint 6)
 - `GET /api/v1/nutrition/plans` (Sprint 7)
 - `GET /api/v1/workouts/plans` (Sprint 8)
 - Medication, voice, analytics, doctor, admin modules (Sprints 9-13)
 
-Swagger/OpenAPI documentation will be generated when the dashboard module ships (Sprint 2).
+Swagger/OpenAPI documentation will be generated alongside the analytics module.

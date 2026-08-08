@@ -17,6 +17,17 @@ enum UserRole {
   ADMIN
 }
 
+enum HealthMetricType {
+  BLOOD_PRESSURE
+  HEART_RATE
+  WEIGHT
+  BLOOD_GLUCOSE
+  BMI
+  SLEEP_HOURS
+  STEPS
+  BODY_TEMPERATURE
+}
+
 model User {
   id             String                    @id @default(cuid())
   email          String                    @unique
@@ -36,8 +47,25 @@ model User {
   refreshTokens            RefreshToken[]
   emailVerificationTokens  EmailVerificationToken[]
   auditLogs                AuditLog[]
+  healthMetrics            HealthMetric[]
 
   @@index([oauthProvider, oauthId])
+}
+
+model HealthMetric {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          HealthMetricType
+  value         Float
+  valueSecondary Float?
+  unit          String
+  recordedAt    DateTime
+  notes         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId, type, recordedAt])
 }
 
 model RefreshToken {

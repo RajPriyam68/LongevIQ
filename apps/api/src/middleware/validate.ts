@@ -16,3 +16,19 @@ export function validateBody(schema: ZodSchema) {
     }
   };
 }
+
+export function validateQuery(schema: ZodSchema) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    try {
+      const parsed = schema.parse(req.query);
+      req.query = parsed as unknown as Request['query'];
+      next();
+    } catch (error) {
+      if (error instanceof ZodError) {
+        next(AppError.badRequest('Invalid query parameters.', error.issues));
+        return;
+      }
+      next(error);
+    }
+  };
+}

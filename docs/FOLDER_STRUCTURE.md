@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 1)
+## Current Structure (Sprint 2)
 
 ```
 .
@@ -22,8 +22,8 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── package.json
 │   │   ├── prisma/
 │   │   │   ├── .env.example           # DATABASE_URL template
-│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog
-│   │   │   ├── migrations/            # add_auth_and_audit (20260807021245)
+│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric
+│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics (20260807142018)
 │   │   │   └── seed.ts                # Demo users (admin/doctor/user)
 │   │   ├── src/
 │   │   │   ├── app.ts                 # Express app factory
@@ -37,7 +37,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   ├── auth.ts            # requireAuth / optionalAuth / requireRoles
 │   │   │   │   ├── error-handler.ts   # Central error mapping
 │   │   │   │   ├── not-found.ts       # 404 for unknown routes
-│   │   │   │   └── validate.ts        # validateBody (zod)
+│   │   │   │   └── validate.ts        # validateBody + validateQuery (zod)
 │   │   │   ├── modules/
 │   │   │   │   ├── auth/              # Authentication module
 │   │   │   │   │   ├── auth.controller.ts
@@ -49,10 +49,20 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── oauth.service.ts
 │   │   │   │   │   ├── password.service.ts
 │   │   │   │   │   └── token.service.ts
+│   │   │   │   ├── dashboard/         # Aggregated health overview
+│   │   │   │   │   ├── dashboard.controller.ts
+│   │   │   │   │   ├── dashboard.routes.ts
+│   │   │   │   │   └── dashboard.service.ts
 │   │   │   │   ├── health/            # Feature module exemplar
 │   │   │   │   │   ├── health.controller.ts
 │   │   │   │   │   ├── health.routes.ts
 │   │   │   │   │   └── health.service.ts
+│   │   │   │   ├── metrics/           # HealthMetric CRUD
+│   │   │   │   │   ├── metrics.controller.ts
+│   │   │   │   │   ├── metrics.repository.ts
+│   │   │   │   │   ├── metrics.repository.types.ts
+│   │   │   │   │   ├── metrics.routes.ts
+│   │   │   │   │   └── metrics.service.ts
 │   │   │   │   └── users/             # Profile + password endpoints
 │   │   │   │       ├── users.controller.ts
 │   │   │   │       └── users.routes.ts
@@ -65,11 +75,13 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │       └── logger.ts          # pino logger
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
-│   │   │   ├── fakes.ts               # Fake repository + email service
+│   │   │   ├── fakes.ts               # Fake repository + email service + metrics repo
 │   │   │   ├── health.spec.ts         # API tests (supertest)
+│   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
 │   │   │   ├── integration/
-│   │   │   │   ├── auth.integration.spec.ts  # DB-backed API tests
-│   │   │   │   └── global-setup.ts    # migrates test DB before run
+│   │   │   │   ├── auth.integration.spec.ts    # DB-backed API tests
+│   │   │   │   ├── global-setup.ts            # migrates test DB before run
+│   │   │   │   └── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
 │   │   │   └── setup.ts               # Test env pinning
 │   │   ├── tsconfig.json
 │   │   ├── tsconfig.test.json
@@ -93,16 +105,23 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── sitemap.ts
 │       │   │   ├── account/
 │       │   │   │   └── page.tsx       # Profile + change password (protected)
-│       │   │   └── auth/
-│       │   │       ├── callback/page.tsx       # Google OAuth return
-│       │   │       ├── login/page.tsx
-│       │   │       ├── register/page.tsx
-│       │   │       └── verify-email/page.tsx
+│       │   │   ├── auth/
+│       │   │   │   ├── callback/page.tsx       # Google OAuth return
+│       │   │   │   ├── login/page.tsx
+│       │   │   │   ├── register/page.tsx
+│       │   │   │   └── verify-email/page.tsx
+│       │   │   └── dashboard/
+│       │   │       └── page.tsx       # Health dashboard (protected)
 │       │   ├── components/
 │       │   │   ├── api-status.tsx     # Server component -> /api/v1/health
 │       │   │   ├── auth/
 │       │   │   │   ├── guest-only.tsx
 │       │   │   │   └── require-auth.tsx
+│       │   │   ├── dashboard/         # Sprint 2 dashboard UI
+│       │   │   │   ├── metric-chart.tsx      # Recharts line chart
+│       │   │   │   ├── metric-form.tsx       # Add-measurement form (RHF + zod)
+│       │   │   │   ├── overview-cards.tsx    # Latest/trend/count per type
+│       │   │   │   └── recent-metrics.tsx    # Recent list + delete
 │       │   │   ├── landing/
 │       │   │   │   ├── cta-section.tsx
 │       │   │   │   ├── features.tsx
@@ -111,7 +130,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── layout/
 │       │   │   │   ├── medical-disclaimer.tsx
 │       │   │   │   ├── site-footer.tsx
-│       │   │   │   ├── site-header.tsx          # Auth-aware nav
+│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard link)
 │       │   │   │   └── theme-toggle.tsx
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
@@ -126,12 +145,15 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │       ├── skeleton.tsx
 │       │   │       └── sonner.tsx
 │       │   ├── lib/
-│       │   │   ├── api-client.ts      # Axios + refresh-token interceptor
+│       │   │   ├── api-client.ts      # Axios + refresh-token interceptor (+ apiDelete)
 │       │   │   ├── api-client.spec.ts
 │       │   │   ├── auth-api.ts        # Typed auth endpoints
 │       │   │   ├── auth-store.ts      # Zustand persist (accessToken/user)
 │       │   │   ├── auth-store.spec.ts
 │       │   │   ├── constants.ts
+│       │   │   ├── metrics-api.ts     # Typed metrics + dashboard endpoints
+│       │   │   ├── metrics-format.ts  # Value/date/delta formatting helpers
+│       │   │   ├── metrics-format.spec.ts
 │       │   │   ├── utils.ts           # cn() helper
 │       │   │   └── utils.spec.ts
 │       │   ├── test/
@@ -158,8 +180,10 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── constants/app.ts       # APP_NAME, MEDICAL_DISCLAIMER, ...
 │       │   ├── types/api.ts           # API envelope + pagination types
 │       │   ├── types/enums.ts         # UserRole, ReportStatus, HealthMetricType
+│       │   ├── types/metrics.ts       # HealthMetric, HEALTH_METRIC_META, DashboardOverview
 │       │   ├── types/user.ts          # PublicUser, AuthSession
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
+│       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
 │       │   └── index.ts
 │       └── tsconfig.json
 └── tsconfig.base.json
@@ -167,6 +191,6 @@ This document tracks the repository structure. It is updated at the end of every
 
 ## Planned Growth
 
-- `apps/api/src/modules/reports`, `metrics`, `ai`, ... per Sprint.
-- `apps/web/src/app/(dashboard)/...`, `apps/web/src/components/<feature>/...` from Sprint 2.
+- `apps/api/src/modules/reports`, `ai`, ... per Sprint.
+- `apps/web/src/app/(dashboard)/...` refined UI from Sprint 3.
 - AI services (`apps/api/src/modules/ai/`) from Sprint 5.

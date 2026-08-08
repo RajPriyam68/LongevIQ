@@ -101,6 +101,11 @@ export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
   return response.data.data;
 }
 
+export async function apiDelete<T>(url: string): Promise<T> {
+  const response = await apiClient.delete<{ success: true; data: T }>(url);
+  return response.data.data;
+}
+
 export function isApiClientError(error: unknown): error is ApiClientError {
   return error instanceof ApiClientError;
 }

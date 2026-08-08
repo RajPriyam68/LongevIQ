@@ -128,6 +128,23 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 - **Demo accounts** (seed): `admin@longeviq.dev`, `doctor@longeviq.dev`, `demo@longeviq.dev`
   (passwords documented in `apps/api/prisma/seed.ts`).
 
+### Sprint 2 — Health Dashboard
+
+- **API**: owner-scoped `HealthMetric` CRUD (`POST/GET/PATCH/DELETE /api/v1/metrics`) and a
+  dashboard overview (`GET /api/v1/dashboard/overview`) with per-type latest/previous/delta and
+  counts, plus the 10 most recent measurements.
+- **Metrics**: 8 supported types (blood pressure, heart rate, weight, blood glucose, BMI, sleep,
+  steps, body temperature) with canonical units and ranges enforced by shared zod schemas;
+  compound types (e.g. blood pressure) require a secondary value.
+- **Data model**: `HealthMetric` (Prisma migration `20260807142018_add_health_metrics`) indexed on
+  `(userId, type, recordedAt)`.
+- **Security**: metrics are scoped to the authenticated user; cross-user access returns `404`;
+  create/update/delete are audit-logged (`DATA.METRIC_*`).
+- **Frontend**: protected `/dashboard` page with overview cards, a Recharts trend chart per metric
+  type, an add-measurement form (RHF + zod), and a recent-measurements list with delete; the site
+  header links to the dashboard for signed-in users.
+- **Tests**: 36 API tests (unit + DB-backed integration) and 24 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -136,7 +153,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | ------ | ------------------------------------------------------------ |
 | 0      | Project planning & setup **(done)**                          |
 | 1      | Authentication & user management **(done)**                   |
-| 2      | Health dashboard                                             |
+| 2      | Health dashboard **(done)**                                  |
 | 3      | Medical report upload & management                           |
 | 4      | OCR + medical report parsing                                 |
 | 5      | Medical knowledge base (RAG)                                 |

@@ -24,3 +24,7 @@ export const HealthMetricType = {
   BODY_TEMPERATURE: 'BODY_TEMPERATURE',
 } as const;
 export type HealthMetricType = (typeof HealthMetricType)[keyof typeof HealthMetricType];
+export const HEALTH_METRIC_TYPE_VALUES = Object.values(HealthMetricType) as [
+  HealthMetricType,
+  ...HealthMetricType[],
+];

@@ -177,3 +177,131 @@ export function makeUser(partial: Partial<User> = {}): User {
     updatedAt: partial.updatedAt ?? now,
   };
 }
+
+export class FakeMetricsRepository {
+  metrics = new Map<string, MetricLike>();
+  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
+
+  async create(input: {
+    userId: string;
+    type: string;
+    value: number;
+    valueSecondary?: number | null;
+    unit: string;
+    recordedAt: Date;
+    notes?: string | null;
+  }) {
+    const now = new Date();
+    const metric: MetricLike = {
+      id: nextId('met'),
+      userId: input.userId,
+      type: input.type,
+      value: input.value,
+      valueSecondary: input.valueSecondary ?? null,
+      unit: input.unit,
+      recordedAt: input.recordedAt,
+      notes: input.notes ?? null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.metrics.set(metric.id, metric);
+    return metric;
+  }
+
+  async findById(id: string) {
+    return this.metrics.get(id) ?? null;
+  }
+
+  async listByUser(userId: string, filter: ListFilter) {
+    const items = [...this.metrics.values()]
+      .filter((m) => m.userId === userId)
+      .filter((m) => (filter.type ? m.type === filter.type : true))
+      .filter((m) => (filter.from ? m.recordedAt >= filter.from : true))
+      .filter((m) => (filter.to ? m.recordedAt <= filter.to : true))
+      .sort((a, b) =>
+        filter.sort === 'asc'
+          ? a.recordedAt.getTime() - b.recordedAt.getTime()
+          : b.recordedAt.getTime() - a.recordedAt.getTime(),
+      );
+    const start = (filter.page - 1) * filter.limit;
+    return { items: items.slice(start, start + filter.limit), total: items.length };
+  }
+
+  async update(id: string, data: Record<string, unknown>) {
+    const metric = this.metrics.get(id);
+    if (!metric) throw new Error(`metric ${id} not found`);
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) clean[key] = value;
+    }
+    const updated = { ...metric, ...clean, updatedAt: new Date() } as MetricLike;
+    this.metrics.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: string) {
+    this.metrics.delete(id);
+  }
+
+  async latestPerType(userId: string, types: string[]) {
+    const byType = new Map<string, MetricLike>();
+    for (const metric of this.metrics.values()) {
+      if (metric.userId !== userId || !types.includes(metric.type)) continue;
+      const current = byType.get(metric.type);
+      if (!current || metric.recordedAt > current.recordedAt) {
+        byType.set(metric.type, metric);
+      }
+    }
+    return [...byType.values()];
+  }
+
+  async previousBefore(userId: string, type: string, before: Date) {
+    const candidates = [...this.metrics.values()]
+      .filter((m) => m.userId === userId && m.type === type && m.recordedAt < before)
+      .sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime());
+    return candidates[0] ?? null;
+  }
+
+  async countsByType(userId: string, types: string[]) {
+    const counts = new Map<string, number>();
+    for (const metric of this.metrics.values()) {
+      if (metric.userId !== userId || !types.includes(metric.type)) continue;
+      counts.set(metric.type, (counts.get(metric.type) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([type, count]) => ({ type, count }));
+  }
+
+  async recentByUser(userId: string, limit: number) {
+    return [...this.metrics.values()]
+      .filter((m) => m.userId === userId)
+      .sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime())
+      .slice(0, limit);
+  }
+
+  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+    this.auditCalls.push(input);
+    return Promise.resolve();
+  }
+}
+
+export interface MetricLike {
+  id: string;
+  userId: string;
+  type: string;
+  value: number;
+  valueSecondary: number | null;
+  unit: string;
+  recordedAt: Date;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ListFilter {
+  type?: string;
+  from?: Date;
+  to?: Date;
+  page: number;
+  limit: number;
+  sort: 'asc' | 'desc';
+}

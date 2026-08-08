@@ -13,6 +13,8 @@ import { createContainer, type Container } from './container.js';
 import healthRoutes from './modules/health/health.routes.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
 import { createUsersRouter } from './modules/users/users.routes.js';
+import { createMetricsRouter } from './modules/metrics/metrics.routes.js';
+import { createDashboardRouter } from './modules/dashboard/dashboard.routes.js';
 
 export interface AppOptions {
   container?: Partial<Container>;
@@ -70,6 +72,16 @@ export function createApp(options: AppOptions = {}): Express {
     '/users',
     requireAuth(container.tokenService),
     createUsersRouter(container.authService),
+  );
+  apiRouter.use(
+    '/metrics',
+    requireAuth(container.tokenService),
+    createMetricsRouter(container.metricsService),
+  );
+  apiRouter.use(
+    '/dashboard',
+    requireAuth(container.tokenService),
+    createDashboardRouter(container.dashboardService),
   );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);

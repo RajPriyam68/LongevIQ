@@ -19,7 +19,7 @@ accepted with rationale.
 | Email verification| Token stored as SHA-256 hash with 24 h expiry; single use        |
 | Google OAuth      | Server-side code exchange; state validated with constant-time comparison; `lq_oauth_state` cookie is httpOnly + short-lived |
 | RBAC              | `requireRoles` middleware guards role-scoped routes                |
-| Audit logging     | `AuditLog` table records auth events (register, login, logout, verify, resend, password change) with actor + action + IP + user-agent |
+| Audit logging     | `AuditLog` table records auth events (register, login, logout, verify, resend, password change) and metric events (create, update, delete) with actor + action + IP + user-agent |
 | Secrets           | Env vars only; `.env*` gitignored; `.env.example` placeholders only |
 | Configuration     | zod-validated env; fail-fast on invalid config; production requires `DATABASE_URL` + `JWT_ACCESS_SECRET` |
 | Logging           | pino redaction of `authorization`, `cookie`, passwords, tokens     |
@@ -50,6 +50,20 @@ accepted with rationale.
   forged offline.
 - **Timing-safe state checks** for OAuth CSRF protection.
 
+## Health-Metric Threat Model (Sprint 2)
+
+- **Tenant isolation**: every metric query, read, update, and delete is filtered by `userId` from
+  the authenticated session; another user's record is indistinguishable from a missing one (both
+  return `404 NOT_FOUND`), preventing resource enumeration.
+- **Input validation**: shared zod schemas enforce metric type, value ranges, and compound-value
+  requirements before the service layer runs; the service persists the canonical unit rather than
+  trusting the client.
+- **Auditability**: metric create/update/delete are written to the append-only `AuditLog` with the
+  acting user, action (`DATA.METRIC_*`), and request metadata; no metric payload is stored in the
+  audit entry.
+- **Sensitive health data**: metric values live only in the authenticated user's scoped reads;
+  dashboard overviews are computed server-side per user and never include another tenant's data.
+
 ## Upcoming Controls (per Sprint)
 
 - **Sprint 3**: S3 presigned uploads, malware-scan hook, file-type allow-list, per-user report
@@ -61,9 +75,10 @@ accepted with rationale.
 
 ## Audit Logging
 
-Implemented in Sprint 1 via the `AuditLog` table. Design principles: append-only by policy (no
-update/delete flows expose it), event classification (`AUTH.*` actions), actor + resource +
-timestamp, IP + user-agent, and no sensitive payloads (passwords/tokens are never written).
+Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 for metrics. Design
+principles: append-only by policy (no update/delete flows expose it), event classification
+(`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and no sensitive
+payloads (passwords/tokens/metric values are never written).
 
 ## Dependency Notes
 
