@@ -64,10 +64,35 @@ accepted with rationale.
 - **Sensitive health data**: metric values live only in the authenticated user's scoped reads;
   dashboard overviews are computed server-side per user and never include another tenant's data.
 
+## Medical Report Threat Model (Sprint 3)
+
+- **Tenant isolation**: report queries, reads, downloads, updates, and deletes are filtered by
+  `userId` from the authenticated session; another user's report is indistinguishable from a
+  missing one (both return `404 NOT_FOUND`), preventing resource enumeration.
+- **File-type allow-list**: the content type and filename supplied by the client are never trusted.
+  Every upload is inspected against magic bytes (`%PDF-`, PNG signature, JPEG `FFD8FF`) and only
+  PDF/PNG/JPEG are accepted; the detected MIME and extension are canonicalized server-side and
+  persisted. Unsupported files are rejected before any storage write.
+- **Upload limits**: `multer` memory storage enforces a hard size cap
+  (`MAX_UPLOAD_BYTES`, default 10 MB) mapped to `413 PAYLOAD_TOO_LARGE`, plus a single-file,
+  bounded-field limit; oversized files fail before reaching the storage layer.
+- **Storage keys**: files are stored under random UUID keys (`uuid.pdf|png|jpg`) that are never
+  derived from user input. The local backend validates the key against a strict pattern before any
+  path join and reads/writes with mode `0600`, so untrusted filenames cannot traverse directories.
+- **Download safety**: responses set `Content-Type` from the detected MIME and
+  `Content-Disposition: inline` with both ASCII and RFC 5987 (`filename*=UTF-8''`) encodings, so
+  hostile filenames cannot smuggle headers or break the browser's download handling.
+- **Auditability**: report create/update/delete/download are written to the append-only `AuditLog`
+  as `DATA.REPORT_*` with the acting user and request metadata; report payloads are never stored in
+  the audit entry.
+- **Orphan tolerance**: deletes remove the database row first; a failing storage removal is
+  swallowed and logged rather than leaking partial state to the caller (the S3/local deletion is
+  idempotent and reconciled by cleanup tooling in a later Sprint).
+
 ## Upcoming Controls (per Sprint)
 
-- **Sprint 3**: S3 presigned uploads, malware-scan hook, file-type allow-list, per-user report
-  ownership checks.
+- **Sprint 4**: OCR parsing pipeline, per-file processing status transitions, malware-scan hook
+  for uploaded files.
 - **Sprint 5**: prompt-injection hardening, output filtering, disclaimers enforced at the AI layer.
 - **Sprint 9**: time-based one-time tokens for medication reminders.
 - **Sprint 13**: admin audit log reader, role escalation guardrails.
@@ -75,10 +100,10 @@ accepted with rationale.
 
 ## Audit Logging
 
-Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 for metrics. Design
-principles: append-only by policy (no update/delete flows expose it), event classification
-(`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and no sensitive
-payloads (passwords/tokens/metric values are never written).
+Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics) and Sprint 3
+(reports). Design principles: append-only by policy (no update/delete flows expose it), event
+classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
+no sensitive payloads (passwords/tokens/metric/report data are never written).
 
 ## Dependency Notes
 

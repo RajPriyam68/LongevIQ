@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { MulterError } from 'multer';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import { AppError } from '../utils/app-error.js';
@@ -47,6 +48,19 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     }));
     logger.warn({ path: req.path, details }, 'Request validation failed');
     sendError(res, 400, 'VALIDATION_ERROR', 'Invalid request payload.', details);
+    return;
+  }
+
+  if (err instanceof MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      logger.warn({ path: req.path, code: err.code }, 'Uploaded file exceeds the size limit');
+      sendError(res, 413, 'PAYLOAD_TOO_LARGE', 'The uploaded file exceeds the allowed size limit.');
+      return;
+    }
+    logger.warn({ path: req.path, code: err.code }, 'Multipart upload failed');
+    sendError(res, 400, 'VALIDATION_ERROR', 'The uploaded file could not be processed.', {
+      code: err.code,
+    });
     return;
   }
 

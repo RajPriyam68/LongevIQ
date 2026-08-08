@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 2)
+## Current Structure (Sprint 3)
 
 ```
 .
@@ -22,8 +22,8 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── package.json
 │   │   ├── prisma/
 │   │   │   ├── .env.example           # DATABASE_URL template
-│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric
-│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics (20260807142018)
+│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric, MedicalReport
+│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics, add_medical_reports (20260808133949)
 │   │   │   └── seed.ts                # Demo users (admin/doctor/user)
 │   │   ├── src/
 │   │   │   ├── app.ts                 # Express app factory
@@ -63,6 +63,19 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── metrics.repository.types.ts
 │   │   │   │   │   ├── metrics.routes.ts
 │   │   │   │   │   └── metrics.service.ts
+│   │   │   │   ├── reports/           # Medical report upload & management
+│   │   │   │   │   ├── reports.controller.ts
+│   │   │   │   │   ├── reports.repository.ts
+│   │   │   │   │   ├── reports.repository.types.ts
+│   │   │   │   │   ├── reports.routes.ts
+│   │   │   │   │   ├── reports.service.ts
+│   │   │   │   │   ├── upload-report.ts          # multer memory storage
+│   │   │   │   │   └── storage/
+│   │   │   │   │       ├── file-inspection.ts    # magic-bytes file-type allow-list
+│   │   │   │   │       ├── local-report-storage.ts
+│   │   │   │   │       ├── report-storage.ts     # storage factory (local vs S3)
+│   │   │   │   │       ├── report-storage.types.ts
+│   │   │   │   │       └── s3-report-storage.ts
 │   │   │   │   └── users/             # Profile + password endpoints
 │   │   │   │       ├── users.controller.ts
 │   │   │   │       └── users.routes.ts
@@ -75,14 +88,16 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │       └── logger.ts          # pino logger
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
-│   │   │   ├── fakes.ts               # Fake repository + email service + metrics repo
+│   │   │   ├── fakes.ts               # Fake repositories + storage + email service
 │   │   │   ├── health.spec.ts         # API tests (supertest)
 │   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
+│   │   │   ├── reports.service.spec.ts# Reports unit tests (fake storage)
 │   │   │   ├── integration/
 │   │   │   │   ├── auth.integration.spec.ts    # DB-backed API tests
 │   │   │   │   ├── global-setup.ts            # migrates test DB before run
-│   │   │   │   └── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
-│   │   │   └── setup.ts               # Test env pinning
+│   │   │   │   ├── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
+│   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
+│   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
 │   │   ├── tsconfig.json
 │   │   ├── tsconfig.test.json
 │   │   └── vitest.config.ts
@@ -110,8 +125,11 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   ├── login/page.tsx
 │       │   │   │   ├── register/page.tsx
 │       │   │   │   └── verify-email/page.tsx
-│       │   │   └── dashboard/
-│       │   │       └── page.tsx       # Health dashboard (protected)
+│       │   │   ├── dashboard/
+│       │   │   │   └── page.tsx       # Health dashboard (protected)
+│       │   │   └── reports/
+│       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
+│       │   │       └── page.tsx       # Report list + upload (protected)
 │       │   ├── components/
 │       │   │   ├── api-status.tsx     # Server component -> /api/v1/health
 │       │   │   ├── auth/
@@ -130,11 +148,14 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── layout/
 │       │   │   │   ├── medical-disclaimer.tsx
 │       │   │   │   ├── site-footer.tsx
-│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard link)
+│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports links)
 │       │   │   │   └── theme-toggle.tsx
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
 │       │   │   │   └── theme-provider.tsx   # next-themes
+│       │   │   ├── reports/           # Sprint 3 report UI
+│       │   │   │   ├── report-list.tsx        # Table + pagination + download/delete
+│       │   │   │   └── report-upload-form.tsx # Drag-and-drop upload (RHF + zod)
 │       │   │   └── ui/                      # shadcn/ui primitives
 │       │   │       ├── badge.tsx
 │       │   │       ├── button.tsx
@@ -154,6 +175,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── metrics-api.ts     # Typed metrics + dashboard endpoints
 │       │   │   ├── metrics-format.ts  # Value/date/delta formatting helpers
 │       │   │   ├── metrics-format.spec.ts
+│       │   │   ├── reports-api.ts     # Typed report endpoints (multipart upload)
+│       │   │   ├── reports-format.ts  # Category/status/file-size helpers
+│       │   │   ├── reports-format.spec.ts
 │       │   │   ├── utils.ts           # cn() helper
 │       │   │   └── utils.spec.ts
 │       │   ├── test/
@@ -179,11 +203,13 @@ This document tracks the repository structure. It is updated at the end of every
 │       ├── src/
 │       │   ├── constants/app.ts       # APP_NAME, MEDICAL_DISCLAIMER, ...
 │       │   ├── types/api.ts           # API envelope + pagination types
-│       │   ├── types/enums.ts         # UserRole, ReportStatus, HealthMetricType
+│       │   ├── types/enums.ts         # UserRole, ReportStatus, ReportCategory, HealthMetricType
 │       │   ├── types/metrics.ts       # HealthMetric, HEALTH_METRIC_META, DashboardOverview
+│       │   ├── types/reports.ts       # MedicalReport, ReportListResult, ReportCategory labels
 │       │   ├── types/user.ts          # PublicUser, AuthSession
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
+│       │   ├── validators/reports.ts  # createReportMetadata/updateReport/listReportsQuery schemas
 │       │   └── index.ts
 │       └── tsconfig.json
 └── tsconfig.base.json

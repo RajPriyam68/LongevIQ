@@ -28,6 +28,13 @@ missing required variables cause the process to **fail fast**.
 | `SMTP_SECURE`            | no       | `false`                | Use TLS on SMTP connection                             |
 | `SMTP_USER` / `SMTP_PASS`| no       | *(empty)*              | SMTP credentials                                       |
 | `EMAIL_FROM`             | no       | `LongevIQ <no-reply@longeviq.dev>` | From address for outgoing email         |
+| `STORAGE_UPLOAD_DIR`     | no       | `<api cwd>/.uploads`   | Directory for locally stored report files             |
+| `MAX_UPLOAD_BYTES`       | no       | `10485760`             | Max uploaded report file size (bytes)                 |
+| `S3_BUCKET`              | no       | *(empty)*              | S3 bucket; when set, report files go to S3 instead of disk |
+| `S3_REGION`              | no*      | *(empty)*              | S3 region (required when `S3_BUCKET` is set, unless `S3_ENDPOINT` is used) |
+| `S3_ENDPOINT`            | no       | *(empty)*              | Custom S3-compatible endpoint (e.g. MinIO/LocalStack) |
+| `S3_ACCESS_KEY_ID`       | no       | *(empty)*              | S3 credentials (optional; falls back to the SDK credential chain) |
+| `S3_SECRET_ACCESS_KEY`   | no       | *(empty)*              | S3 credentials                                         |
 
 > **Development email fallback.** When `SMTP_HOST` is unset, verification emails are logged to the
 > server console and the verification link is returned in the API response. This only happens when
@@ -39,10 +46,6 @@ These are documented now for planning; they are consumed by later Sprints:
 
 | Variable               | Sprint | Purpose                        |
 | ---------------------- | ------ | ------------------------------ |
-| `S3_BUCKET`            | 3      | Report storage bucket          |
-| `S3_REGION`            | 3      | S3 region                      |
-| `S3_ACCESS_KEY_ID`     | 3      | S3 credentials                 |
-| `S3_SECRET_ACCESS_KEY` | 3      | S3 credentials                 |
 | `OPENAI_API_KEY`       | 5      | LLM provider                   |
 | `GOOGLE_GEMINI_API_KEY`| 5      | LLM provider                   |
 | `OPENAI_EMBEDDING_MODEL`| 5     | Embedding model name           |

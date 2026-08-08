@@ -34,6 +34,7 @@ data/
 
 # Uploads / storage
 uploads/
+.uploads/
 tmp/
 
 # Prisma

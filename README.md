@@ -145,6 +145,30 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   header links to the dashboard for signed-in users.
 - **Tests**: 36 API tests (unit + DB-backed integration) and 24 web tests.
 
+### Sprint 3 — Medical Report Upload & Management
+
+- **API**: owner-scoped report management under `/api/v1/reports` — multipart upload
+  (`POST /api/v1/reports`, `file` field + metadata), list with `category` filter and
+  pagination (`GET /api/v1/reports`), detail (`GET /api/v1/reports/:id`), download
+  (`GET /api/v1/reports/:id/file`), update (`PATCH /api/v1/reports/:id`), and delete
+  (`DELETE /api/v1/reports/:id`).
+- **Storage**: pluggable storage layer — local disk (`STORAGE_UPLOAD_DIR`, mode 0600) in
+  dev/test and S3 (`S3_BUCKET` + region/endpoint/credentials) in production; files are
+  validated by magic bytes (PDF/PNG/JPEG) with a canonical MIME/extension, never trusting
+  client-provided content type.
+- **Data model**: `MedicalReport` (Prisma migration `20260808133949_add_medical_reports`)
+  indexed on `(userId, createdAt)` and `(userId, category)`; statuses default to
+  `UPLOADED` (PROCESSING/PARSED/FAILED reserved for the Sprint 4 OCR pipeline).
+- **Security**: files stored under random UUID keys with a strict name pattern; per-owner
+  isolation (cross-user access returns `404`); 10 MB upload limit mapped to `413`; uploads
+  rejected before hitting storage when the file type/size is invalid; download sets
+  `Content-Disposition: inline` with both ASCII and RFC 5987 filename encodings;
+  create/update/delete/download are audit-logged (`DATA.REPORT_*`).
+- **Frontend**: protected `/reports` page with drag-and-drop upload, category filter pills,
+  and a paginated report table with download/delete; `/reports/[id]` detail page with an
+  inline edit form; the site header links to Reports for signed-in users.
+- **Tests**: 55 API tests (unit + DB-backed integration) and 28 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -154,7 +178,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 0      | Project planning & setup **(done)**                          |
 | 1      | Authentication & user management **(done)**                   |
 | 2      | Health dashboard **(done)**                                  |
-| 3      | Medical report upload & management                           |
+| 3      | Medical report upload & management **(done)**               |
 | 4      | OCR + medical report parsing                                 |
 | 5      | Medical knowledge base (RAG)                                 |
 | 6      | AI health assistant                                          |

@@ -12,6 +12,10 @@ export const ReportStatus = {
   FAILED: 'FAILED',
 } as const;
 export type ReportStatus = (typeof ReportStatus)[keyof typeof ReportStatus];
+export const REPORT_STATUS_VALUES = Object.values(ReportStatus) as [
+  ReportStatus,
+  ...ReportStatus[],
+];
 
 export const HealthMetricType = {
   BLOOD_PRESSURE: 'BLOOD_PRESSURE',

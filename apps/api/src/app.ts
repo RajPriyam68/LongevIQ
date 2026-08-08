@@ -15,6 +15,7 @@ import { createAuthRouter } from './modules/auth/auth.routes.js';
 import { createUsersRouter } from './modules/users/users.routes.js';
 import { createMetricsRouter } from './modules/metrics/metrics.routes.js';
 import { createDashboardRouter } from './modules/dashboard/dashboard.routes.js';
+import { createReportsRouter } from './modules/reports/reports.routes.js';
 
 export interface AppOptions {
   container?: Partial<Container>;
@@ -82,6 +83,11 @@ export function createApp(options: AppOptions = {}): Express {
     '/dashboard',
     requireAuth(container.tokenService),
     createDashboardRouter(container.dashboardService),
+  );
+  apiRouter.use(
+    '/reports',
+    requireAuth(container.tokenService),
+    createReportsRouter(container.reportsService),
   );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);

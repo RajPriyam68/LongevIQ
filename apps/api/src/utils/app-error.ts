@@ -6,6 +6,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'RATE_LIMITED'
+  | 'PAYLOAD_TOO_LARGE'
   | 'INTERNAL_ERROR';
 
 export class AppError extends Error {
@@ -48,5 +49,9 @@ export class AppError extends Error {
 
   static conflict(message: string): AppError {
     return new AppError(409, 'CONFLICT', message);
+  }
+
+  static payloadTooLarge(message: string): AppError {
+    return new AppError(413, 'PAYLOAD_TOO_LARGE', message);
   }
 }

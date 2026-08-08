@@ -305,3 +305,128 @@ export interface ListFilter {
   limit: number;
   sort: 'asc' | 'desc';
 }
+
+export class FakeReportStorage {
+  objects = new Map<string, { data: Buffer; mimeType: string; extension: string }>();
+  removed: string[] = [];
+
+  async put(input: { data: Buffer; mimeType: string; extension: string }) {
+    const storageKey = `key_${this.objects.size + 1}`;
+    this.objects.set(storageKey, input);
+    return { storageKey, sizeBytes: input.data.length };
+  }
+
+  async open(storageKey: string) {
+    const object = this.objects.get(storageKey);
+    if (!object) throw new Error(`object ${storageKey} not found`);
+    return { data: object.data, sizeBytes: object.data.length };
+  }
+
+  async remove(storageKey: string) {
+    this.removed.push(storageKey);
+    this.objects.delete(storageKey);
+  }
+}
+
+export class FakeReportsRepository {
+  reports = new Map<string, ReportLike>();
+  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
+
+  async create(input: {
+    userId: string;
+    title: string;
+    reportDate: Date;
+    source?: string | null;
+    category: string;
+    notes?: string | null;
+    status: string;
+    fileName: string;
+    fileSizeBytes: number;
+    mimeType: string;
+    storageKey: string;
+  }) {
+    const now = new Date();
+    const report: ReportLike = {
+      id: nextId('rep'),
+      userId: input.userId,
+      title: input.title,
+      reportDate: input.reportDate,
+      source: input.source ?? null,
+      category: input.category,
+      notes: input.notes ?? null,
+      status: input.status,
+      fileName: input.fileName,
+      fileSizeBytes: input.fileSizeBytes,
+      mimeType: input.mimeType,
+      storageKey: input.storageKey,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.reports.set(report.id, report);
+    return report;
+  }
+
+  async findById(id: string) {
+    return this.reports.get(id) ?? null;
+  }
+
+  async listByUser(userId: string, filter: ReportListFilter) {
+    const items = [...this.reports.values()]
+      .filter((r) => r.userId === userId)
+      .filter((r) => (filter.category ? r.category === filter.category : true))
+      .filter((r) => (filter.status ? r.status === filter.status : true))
+      .sort((a, b) =>
+        filter.sort === 'asc'
+          ? a.createdAt.getTime() - b.createdAt.getTime()
+          : b.createdAt.getTime() - a.createdAt.getTime(),
+      );
+    const start = (filter.page - 1) * filter.limit;
+    return { items: items.slice(start, start + filter.limit), total: items.length };
+  }
+
+  async update(id: string, data: Record<string, unknown>) {
+    const report = this.reports.get(id);
+    if (!report) throw new Error(`report ${id} not found`);
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) clean[key] = value;
+    }
+    const updated = { ...report, ...clean, updatedAt: new Date() } as ReportLike;
+    this.reports.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: string) {
+    this.reports.delete(id);
+  }
+
+  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+    this.auditCalls.push(input);
+    return Promise.resolve();
+  }
+}
+
+export interface ReportLike {
+  id: string;
+  userId: string;
+  title: string;
+  reportDate: Date;
+  source: string | null;
+  category: string;
+  notes: string | null;
+  status: string;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  storageKey: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ReportListFilter {
+  category?: string;
+  status?: string;
+  page: number;
+  limit: number;
+  sort: 'asc' | 'desc';
+}

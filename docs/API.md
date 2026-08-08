@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 2)
+## Current Endpoints (Sprint 3)
 
 ### Health check
 
@@ -375,6 +375,123 @@ change (`delta`) between them, counts, and the 10 most recent measurements acros
 `delta` is `latest - previous` rounded to 2 decimal places, or `null` when the type has fewer than
 two measurements. `summary` always contains all 8 metric types.
 
+### Medical reports
+
+All endpoints require `Authorization: Bearer <accessToken>`. Reports are scoped to the
+authenticated user — records belonging to other users are indistinguishable from missing ones
+(`404 NOT_FOUND`).
+
+Supported file types (validated by magic bytes, not by the client's content type): PDF
+(`application/pdf`), PNG (`image/png`), and JPEG (`image/jpeg`). The maximum file size is
+`MAX_UPLOAD_BYTES` (default 10 MB); larger uploads return `413 PAYLOAD_TOO_LARGE`. Files are stored
+in S3 when `S3_BUCKET` is configured, otherwise on the local filesystem
+(`STORAGE_UPLOAD_DIR`).
+
+Report categories: `BLOODWORK`, `IMAGING`, `GENERAL`, `OTHER` (default `OTHER`).
+Report status: `UPLOADED`, `PROCESSING`, `PARSED`, `FAILED` (new uploads are `UPLOADED`).
+
+#### Upload a report
+
+`POST /api/v1/reports` — `multipart/form-data` with a single `file` field plus metadata fields.
+
+| Field        | Required | Notes                                |
+| ------------ | -------- | ------------------------------------ |
+| `file`       | yes      | PDF/PNG/JPEG file                    |
+| `title`      | yes      | 1–120 characters                     |
+| `reportDate` | yes      | Valid date (e.g. `2026-08-01`)       |
+| `category`   | no       | Defaults to `OTHER`                  |
+| `source`     | no       | Clinic/lab name, max 100 characters  |
+| `notes`      | no       | Max 500 characters                   |
+
+**Response 201**
+
+```json
+{
+  "success": true,
+  "data": {
+    "report": {
+      "id": "rep_...",
+      "title": "Annual bloodwork",
+      "reportDate": "2026-08-01T00:00:00.000Z",
+      "source": "Central Lab",
+      "category": "BLOODWORK",
+      "notes": null,
+      "status": "UPLOADED",
+      "fileName": "bloodwork.pdf",
+      "fileSizeBytes": 184000,
+      "mimeType": "application/pdf",
+      "createdAt": "2026-08-08T10:00:00.000Z",
+      "updatedAt": "2026-08-08T10:00:00.000Z"
+    }
+  }
+}
+```
+
+**Errors**: `400 VALIDATION_ERROR` (missing metadata, unsupported file type), `413
+PAYLOAD_TOO_LARGE`, `401 UNAUTHORIZED`.
+
+#### List reports
+
+`GET /api/v1/reports?page=1&limit=20&sort=desc&category=BLOODWORK&status=UPLOADED`
+
+Query params are all optional: `page` (min 1), `limit` (1–100, default 20), `sort`
+(`asc`|`desc` by `createdAt`, default `desc`), `category`, `status`.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [ { "id": "rep_...", "title": "Annual bloodwork", "..." : "..." } ],
+    "pagination": { "page": 1, "limit": 20, "total": 12, "totalPages": 1 }
+  }
+}
+```
+
+#### Get a report
+
+`GET /api/v1/reports/:id`
+
+**Response 200**: `{ "success": true, "data": { "report": { ... } } }`
+
+**Errors**: `404 NOT_FOUND` (does not exist or belongs to another user).
+
+#### Download a report file
+
+`GET /api/v1/reports/:id/file`
+
+Streams the stored file with `Content-Type` set to the detected MIME type, a
+`Content-Disposition: inline` header, and `Content-Length`. Requires ownership.
+
+**Response 200**: raw file bytes.
+
+**Errors**: `404 NOT_FOUND`.
+
+#### Update a report
+
+`PATCH /api/v1/reports/:id`
+
+**Request body** (at least one field; `source` and `notes` may be set to `null` to clear them)
+
+```json
+{ "title": "Annual bloodwork 2026", "notes": null }
+```
+
+**Response 200**: `{ "success": true, "data": { "report": { ... } } }`
+
+**Errors**: `400 VALIDATION_ERROR`, `404 NOT_FOUND`.
+
+#### Delete a report
+
+`DELETE /api/v1/reports/:id`
+
+Removes the database record and the stored file.
+
+**Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
+**Errors**: `404 NOT_FOUND`.
+
 ### Not found
 
 Any unknown route returns:
@@ -401,13 +518,14 @@ Any unknown route returns:
 | `NOT_FOUND`           | 404  | Resource or route not found               |
 | `CONFLICT`            | 409  | State conflict (e.g. duplicate email)     |
 | `RATE_LIMITED`        | 429  | Rate limit exceeded                       |
+| `PAYLOAD_TOO_LARGE`   | 413  | Request body or uploaded file exceeds the size limit |
 | `INTERNAL_ERROR`      | 500/503 | Unexpected server error (masked in prod); unconfigured OAuth provider |
 
 ## Future Modules
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- `POST /api/v1/reports` + presigned uploads (Sprint 3)
+- Report parsing & OCR (Sprint 4)
 - `POST /api/v1/ai/chat` (Sprint 6)
 - `GET /api/v1/nutrition/plans` (Sprint 7)
 - `GET /api/v1/workouts/plans` (Sprint 8)

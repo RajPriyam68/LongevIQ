@@ -43,6 +43,20 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('LongevIQ <no-reply@longeviq.example.com>'),
+
+  // Sprint 3: medical report storage. When S3_BUCKET is set, files are stored in S3;
+  // otherwise they are written to a local directory (STORAGE_UPLOAD_DIR).
+  STORAGE_UPLOAD_DIR: z.string().min(1).optional(),
+  MAX_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  S3_ENDPOINT: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -75,6 +89,12 @@ function loadEnv(): Env {
         throw new Error(`Invalid environment configuration:\n  - ${field} is required in ${base}`);
       }
     }
+  }
+
+  if (data.S3_BUCKET && !data.S3_REGION && !data.S3_ENDPOINT) {
+    throw new Error(
+      'Invalid environment configuration:\n  - S3_REGION or S3_ENDPOINT is required when S3_BUCKET is set',
+    );
   }
 
   return data;
