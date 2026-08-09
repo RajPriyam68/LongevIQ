@@ -169,6 +169,32 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   inline edit form; the site header links to Reports for signed-in users.
 - **Tests**: 55 API tests (unit + DB-backed integration) and 28 web tests.
 
+### Sprint 4 — OCR & Medical Report Parsing
+
+- **OCR pipeline**: every upload is processed synchronously. Digital PDFs have their text
+  extracted with `pdfjs-dist`; scanned PDFs and PNG/JPEG images are rendered with
+  `@napi-rs/canvas` and read with `tesseract.js` (WASM). The English model
+  (`eng.traineddata.gz`) and the rendering font (`DejaVuSans.ttf`) are vendored in the
+  repository (`apps/api/assets`) so processing is deterministic and never downloads at
+  runtime (`OCR_LANG_PATH` overrides the model location).
+- **Parsing**: a lexicon of 30 canonical lab tests (bloodwork/general) with OCR-noise
+  aliases (e.g. `Alc` → Hemoglobin A1c) extracts structured findings — name, value, unit,
+  reference range, flag (normal/high/low), and a confidence score — with single- and
+  two-bound ranges and explicit `H`/`L`/`↑`/`*` markers. Unrecognized rows fall back to a
+  generic 0.6-confidence finding. Imaging/other categories store raw text only.
+- **Results**: reports become `PARSED` with `findings` + `parsedText` + `parsedAt`, or
+  `FAILED` with a `processingError`; upload always returns `201` and parsing failures never
+  lose the file. Processing is audited (`DATA.REPORT_PROCESSED`).
+- **Data model**: `ReportFinding` and `ReportFindingFlag` plus `parsedText`,
+  `processingError`, `parsedAt` columns (Prisma migration `add_report_findings`); findings
+  are replaced atomically on re-processing.
+- **Security**: OCR is bounded (`OCR_MAX_PAGES`, `OCR_MAX_IMAGE_DIMENSION`, `OCR_SCALE`)
+  and runs locally in-process; uploaded content is never sent to third-party services.
+- **Frontend**: the report detail page shows a findings table with flag badges, a
+  collapsible raw-text panel, and a processing-error notice for failed reports.
+- **Tests**: 75 API tests (unit + DB-backed integration + real tesseract OCR + parser) and
+  30 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -179,7 +205,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 1      | Authentication & user management **(done)**                   |
 | 2      | Health dashboard **(done)**                                  |
 | 3      | Medical report upload & management **(done)**               |
-| 4      | OCR + medical report parsing                                 |
+| 4      | OCR + medical report parsing **(done)**                    |
 | 5      | Medical knowledge base (RAG)                                 |
 | 6      | AI health assistant                                          |
 | 7      | Nutrition planner                                            |

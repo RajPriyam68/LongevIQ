@@ -57,6 +57,15 @@ const envSchema = z.object({
   S3_ENDPOINT: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+
+  // Sprint 4: OCR + report parsing. OCR_LANG_PATH overrides the bundled English
+  // tesseract language model (apps/api/assets/tessdata). The remaining knobs bound
+  // the CPU/memory cost of processing untrusted uploads.
+  OCR_LANG_PATH: z.string().min(1).optional(),
+  OCR_MIN_TEXT_LENGTH: z.coerce.number().int().nonnegative().default(60),
+  OCR_MAX_PAGES: z.coerce.number().int().positive().max(50).default(10),
+  OCR_SCALE: z.coerce.number().positive().max(4).default(2),
+  OCR_MAX_IMAGE_DIMENSION: z.coerce.number().int().positive().default(3000),
 });
 
 export type Env = z.infer<typeof envSchema>;

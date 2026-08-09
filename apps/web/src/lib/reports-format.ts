@@ -1,4 +1,10 @@
-import { REPORT_CATEGORY_LABELS, type ReportCategory, type ReportStatus } from '@longeviq/shared';
+import {
+  REPORT_CATEGORY_LABELS,
+  REPORT_FINDING_FLAG_LABELS,
+  type ReportCategory,
+  type ReportFindingFlag,
+  type ReportStatus,
+} from '@longeviq/shared';
 
 export const REPORT_STATUS_LABELS: Record<ReportStatus, string> = {
   UPLOADED: 'Uploaded',
@@ -26,6 +32,22 @@ export function reportStatusLabel(status: ReportStatus): string {
 
 export function reportStatusTone(status: ReportStatus): ReportStatusTone {
   return REPORT_STATUS_TONES[status];
+}
+
+export type FindingFlagTone = 'success' | 'warning' | 'destructive';
+
+export const FINDING_FLAG_TONES: Record<ReportFindingFlag, FindingFlagTone> = {
+  NORMAL: 'success',
+  HIGH: 'destructive',
+  LOW: 'warning',
+};
+
+export function reportFindingFlagLabel(flag: ReportFindingFlag): string {
+  return REPORT_FINDING_FLAG_LABELS[flag];
+}
+
+export function reportFindingFlagTone(flag: ReportFindingFlag): FindingFlagTone {
+  return FINDING_FLAG_TONES[flag];
 }
 
 export function formatFileSize(bytes: number): string {

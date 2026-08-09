@@ -35,6 +35,42 @@ export interface MedicalReport {
   updatedAt: string;
 }
 
+export const ReportFindingFlag = {
+  NORMAL: 'NORMAL',
+  HIGH: 'HIGH',
+  LOW: 'LOW',
+} as const;
+export type ReportFindingFlag = (typeof ReportFindingFlag)[keyof typeof ReportFindingFlag];
+
+export const REPORT_FINDING_FLAG_VALUES = Object.values(ReportFindingFlag) as [
+  ReportFindingFlag,
+  ...ReportFindingFlag[],
+];
+
+export const REPORT_FINDING_FLAG_LABELS: Record<ReportFindingFlag, string> = {
+  NORMAL: 'Normal',
+  HIGH: 'High',
+  LOW: 'Low',
+};
+
+export interface ReportFinding {
+  id: string;
+  name: string;
+  value: string;
+  unit: string | null;
+  referenceRange: string | null;
+  flag: ReportFindingFlag | null;
+  confidence: number;
+  sortOrder: number;
+}
+
+export interface ReportDetail extends MedicalReport {
+  parsedText: string | null;
+  processingError: string | null;
+  parsedAt: string | null;
+  findings: ReportFinding[];
+}
+
 export interface ReportListResult {
   items: MedicalReport[];
   pagination: {

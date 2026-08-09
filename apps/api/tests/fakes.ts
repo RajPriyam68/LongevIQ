@@ -328,6 +328,32 @@ export class FakeReportStorage {
   }
 }
 
+export class FakeReportProcessor {
+  calls: Array<{ mimeType: string; category: string }> = [];
+  text = 'GLUCOSE 95 mg/dL (ref 70-99)';
+  findings: FindingLike[] = [];
+  error: Error | null = null;
+
+  async process(input: { mimeType: string; data: Buffer; category: string }) {
+    this.calls.push({ mimeType: input.mimeType, category: input.category });
+    if (this.error) throw this.error;
+    return { parsedText: this.text, findings: this.findings };
+  }
+}
+
+export interface FindingLike {
+  id: string;
+  reportId: string;
+  name: string;
+  value: string;
+  unit: string | null;
+  referenceRange: string | null;
+  flag: 'NORMAL' | 'HIGH' | 'LOW' | null;
+  confidence: number;
+  sortOrder: number;
+  createdAt: Date;
+}
+
 export class FakeReportsRepository {
   reports = new Map<string, ReportLike>();
   auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
@@ -359,6 +385,10 @@ export class FakeReportsRepository {
       fileSizeBytes: input.fileSizeBytes,
       mimeType: input.mimeType,
       storageKey: input.storageKey,
+      parsedText: null,
+      processingError: null,
+      parsedAt: null,
+      findings: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -367,6 +397,10 @@ export class FakeReportsRepository {
   }
 
   async findById(id: string) {
+    return this.reports.get(id) ?? null;
+  }
+
+  async findByIdWithFindings(id: string) {
     return this.reports.get(id) ?? null;
   }
 
@@ -396,6 +430,44 @@ export class FakeReportsRepository {
     return updated;
   }
 
+  async completeProcessing(
+    id: string,
+    input: {
+      status: 'PARSED' | 'FAILED';
+      parsedText?: string | null;
+      processingError?: string | null;
+      parsedAt: Date;
+      findings?: FindingLike[];
+    },
+  ) {
+    const report = this.reports.get(id);
+    if (!report) throw new Error(`report ${id} not found`);
+    const now = new Date();
+    const findings: FindingLike[] = (input.findings ?? []).map((finding, index) => ({
+      id: nextId('fin'),
+      reportId: id,
+      name: finding.name,
+      value: finding.value,
+      unit: finding.unit ?? null,
+      referenceRange: finding.referenceRange ?? null,
+      flag: finding.flag ?? null,
+      confidence: finding.confidence,
+      sortOrder: index,
+      createdAt: now,
+    }));
+    const updated: ReportLike = {
+      ...report,
+      status: input.status,
+      parsedText: input.parsedText ?? null,
+      processingError: input.processingError ?? null,
+      parsedAt: input.parsedAt,
+      findings,
+      updatedAt: now,
+    };
+    this.reports.set(id, updated);
+    return updated;
+  }
+
   async delete(id: string) {
     this.reports.delete(id);
   }
@@ -419,6 +491,10 @@ export interface ReportLike {
   fileSizeBytes: number;
   mimeType: string;
   storageKey: string;
+  parsedText: string | null;
+  processingError: string | null;
+  parsedAt: Date | null;
+  findings: FindingLike[];
   createdAt: Date;
   updatedAt: Date;
 }

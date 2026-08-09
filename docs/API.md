@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 3)
+## Current Endpoints (Sprint 4)
 
 ### Health check
 
@@ -388,7 +388,15 @@ in S3 when `S3_BUCKET` is configured, otherwise on the local filesystem
 (`STORAGE_UPLOAD_DIR`).
 
 Report categories: `BLOODWORK`, `IMAGING`, `GENERAL`, `OTHER` (default `OTHER`).
-Report status: `UPLOADED`, `PROCESSING`, `PARSED`, `FAILED` (new uploads are `UPLOADED`).
+Report status: `UPLOADED`, `PROCESSING`, `PARSED`, `FAILED`.
+
+Every upload is processed synchronously before the response is returned: digital PDFs are
+read via embedded text, and scanned PDFs / PNG / JPEG images are OCR'd (tesseract.js WASM +
+`@napi-rs/canvas`; model and font are vendored in `apps/api/assets`). Text is extracted and,
+for `BLOODWORK`/`GENERAL` reports, parsed into structured findings (name, value, unit,
+reference range, flag, confidence). Successful parsing sets the status to `PARSED`; an
+empty/unparseable document sets it to `FAILED` with a `processingError`. Parsing failures
+never reject the upload — the file is always stored and retrievable.
 
 #### Upload a report
 
@@ -416,7 +424,7 @@ Report status: `UPLOADED`, `PROCESSING`, `PARSED`, `FAILED` (new uploads are `UP
       "source": "Central Lab",
       "category": "BLOODWORK",
       "notes": null,
-      "status": "UPLOADED",
+      "status": "PARSED",
       "fileName": "bloodwork.pdf",
       "fileSizeBytes": 184000,
       "mimeType": "application/pdf",
@@ -454,6 +462,66 @@ Query params are all optional: `page` (min 1), `limit` (1–100, default 20), `s
 `GET /api/v1/reports/:id`
 
 **Response 200**: `{ "success": true, "data": { "report": { ... } } }`
+
+The detail response extends the list shape with processing fields:
+
+```json
+{
+  "success": true,
+  "data": {
+    "report": {
+      "id": "rep_...",
+      "title": "Annual bloodwork",
+      "reportDate": "2026-08-01T00:00:00.000Z",
+      "source": "Central Lab",
+      "category": "BLOODWORK",
+      "notes": null,
+      "status": "PARSED",
+      "fileName": "bloodwork.pdf",
+      "fileSizeBytes": 184000,
+      "mimeType": "application/pdf",
+      "createdAt": "2026-08-08T10:00:00.000Z",
+      "updatedAt": "2026-08-08T10:00:00.000Z",
+      "parsedText": "GLUCOSE 95 mg/dL (ref 70-99)\nHEMOGLOBIN A1c 5.4 % (ref 4.0-5.6)",
+      "processingError": null,
+      "parsedAt": "2026-08-08T10:00:01.000Z",
+      "findings": [
+        {
+          "id": "repf_...",
+          "name": "Glucose",
+          "value": "95",
+          "unit": "mg/dL",
+          "referenceRange": "70 - 99",
+          "flag": "NORMAL",
+          "confidence": 1,
+          "sortOrder": 0
+        },
+        {
+          "id": "repf_...",
+          "name": "Hemoglobin A1c",
+          "value": "5.4",
+          "unit": "%",
+          "referenceRange": "4 - 5.6",
+          "flag": "NORMAL",
+          "confidence": 1,
+          "sortOrder": 1
+        }
+      ]
+    }
+  }
+}
+```
+
+Fields:
+
+| Field            | Type      | Notes                                            |
+| ---------------- | --------- | ------------------------------------------------ |
+| `parsedText`     | string?   | Raw text extracted from the document             |
+| `processingError`| string?   | Set when the status is `FAILED`                  |
+| `parsedAt`       | string?   | ISO timestamp of the last successful parse       |
+| `findings`       | array     | Structured findings, empty for non-parseable reports |
+| `findings[].flag`| string?   | `NORMAL`, `HIGH`, `LOW`, or `null`               |
+| `findings[].confidence` | number | 0–1 extraction confidence                   |
 
 **Errors**: `404 NOT_FOUND` (does not exist or belongs to another user).
 

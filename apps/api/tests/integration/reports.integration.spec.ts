@@ -3,6 +3,7 @@ import request from 'supertest';
 import { PrismaClient } from '@prisma/client';
 import { createApp } from '../../src/app.js';
 import { env } from '../../src/config/env.js';
+import { FakeReportProcessor } from '../fakes.js';
 
 const describeIntegration = process.env.DATABASE_URL ? describe : describe.skip;
 
@@ -14,7 +15,7 @@ const pdfBuffer = Buffer.concat([
 const invalidBuffer = Buffer.from('this is not a report file');
 
 describeIntegration('Reports API (integration)', () => {
-  const app = createApp();
+  const app = createApp({ container: { reportProcessor: new FakeReportProcessor() } });
   const prisma = new PrismaClient();
   const base = `${env.API_PREFIX}/${env.API_VERSION}`;
 
@@ -81,7 +82,7 @@ describeIntegration('Reports API (integration)', () => {
     expect(res.body.data.report.title).toBe('Annual bloodwork');
     expect(res.body.data.report.category).toBe('BLOODWORK');
     expect(res.body.data.report.source).toBe('Central Lab');
-    expect(res.body.data.report.status).toBe('UPLOADED');
+    expect(res.body.data.report.status).toBe('PARSED');
     expect(res.body.data.report.mimeType).toBe('application/pdf');
     expect(res.body.data.report.fileSizeBytes).toBe(pdfBuffer.length);
     expect(res.body.data.report.fileName).toBe('bloodwork.pdf');
@@ -145,6 +146,10 @@ describeIntegration('Reports API (integration)', () => {
       .set('Authorization', `Bearer ${tokenA}`);
     expect(detail.status).toBe(200);
     expect(detail.body.data.report.title).toBe('Editable');
+    expect(detail.body.data.report.status).toBe('PARSED');
+    expect(detail.body.data.report.parsedText).toContain('GLUCOSE');
+    expect(detail.body.data.report.parsedAt).toBeTruthy();
+    expect(detail.body.data.report.findings).toHaveLength(0);
 
     const download = await request(app)
       .get(`${base}/reports/${id}/file`)
@@ -204,5 +209,29 @@ describeIntegration('Reports API (integration)', () => {
       .attach('file', pdfBuffer, 'a.pdf');
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('surfaces processing failures as FAILED with the error message', async () => {
+    const failing = new FakeReportProcessor();
+    failing.error = new Error('Tesseract crashed');
+    const failingApp = createApp({ container: { reportProcessor: failing } });
+
+    const res = await request(failingApp)
+      .post(`${base}/reports`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .field('title', 'Broken scan')
+      .field('reportDate', '2026-08-01')
+      .field('category', 'GENERAL')
+      .attach('file', pdfBuffer, 'broken.pdf');
+    expect(res.status).toBe(201);
+    expect(res.body.data.report.status).toBe('FAILED');
+
+    const detail = await request(failingApp)
+      .get(`${base}/reports/${res.body.data.report.id}`)
+      .set('Authorization', `Bearer ${tokenA}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.data.report.status).toBe('FAILED');
+    expect(detail.body.data.report.processingError).toBe('Tesseract crashed');
+    expect(detail.body.data.report.findings).toHaveLength(0);
   });
 });

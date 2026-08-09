@@ -24,6 +24,7 @@ import {
   reportStatusTone,
 } from '@/lib/reports-format';
 import { RequireAuth } from '@/components/auth/require-auth';
+import { ReportFindings } from '@/components/reports/report-findings';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -209,12 +210,24 @@ export default function ReportDetailPage() {
                   <span className="text-muted-foreground">Uploaded</span>
                   <span className="font-medium">{formatDate(report.createdAt)}</span>
                 </div>
+                {report.parsedAt ? (
+                  <div className="flex justify-between border-b py-2">
+                    <span className="text-muted-foreground">Parsed</span>
+                    <span className="font-medium">{formatDate(report.parsedAt)}</span>
+                  </div>
+                ) : null}
                 <div className="flex justify-between py-2">
                   <span className="text-muted-foreground">Notes</span>
                   <span className="max-w-[60%] text-right font-medium">{report.notes ?? '—'}</span>
                 </div>
               </CardContent>
             </Card>
+
+            <ReportFindings
+              findings={report.findings}
+              parsedText={report.parsedText}
+              processingError={report.processingError}
+            />
 
             <Card>
               <CardHeader>
@@ -299,8 +312,8 @@ export default function ReportDetailPage() {
 
             <Separator />
             <p className="text-xs text-muted-foreground">
-              Files are stored securely and are only accessible to you. Parsing and analysis of
-              report contents arrive in a future update.
+              Files are stored securely and are only accessible to you. Extracted results and raw
+              text are produced automatically on upload.
             </p>
           </>
         )}

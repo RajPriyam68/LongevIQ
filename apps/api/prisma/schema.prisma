@@ -42,6 +42,12 @@ enum ReportCategory {
   OTHER
 }
 
+enum ReportFindingFlag {
+  NORMAL
+  HIGH
+  LOW
+}
+
 model User {
   id             String                    @id @default(cuid())
   email          String                    @unique
@@ -84,24 +90,46 @@ model HealthMetric {
 }
 
 model MedicalReport {
-  id            String         @id @default(cuid())
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title         String
-  reportDate    DateTime
-  source        String?
-  category      ReportCategory @default(OTHER)
-  notes         String?
-  status        ReportStatus   @default(UPLOADED)
-  fileName      String
-  fileSizeBytes Int
-  mimeType      String
-  storageKey    String         @unique
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  reportDate      DateTime
+  source          String?
+  category        ReportCategory @default(OTHER)
+  notes           String?
+  status          ReportStatus   @default(UPLOADED)
+  fileName        String
+  fileSizeBytes   Int
+  mimeType        String
+  storageKey      String         @unique
+  parsedText      String?
+  processingError String?
+  parsedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  findings ReportFinding[]
 
   @@index([userId, createdAt])
   @@index([userId, category])
+  @@index([status])
+}
+
+model ReportFinding {
+  id             String             @id @default(cuid())
+  reportId       String
+  report         MedicalReport      @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  name           String
+  value          String
+  unit           String?
+  referenceRange String?
+  flag           ReportFindingFlag?
+  confidence     Float
+  sortOrder      Int                @default(0)
+  createdAt      DateTime           @default(now())
+
+  @@index([reportId])
 }
 
 model RefreshToken {

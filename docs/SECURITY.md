@@ -89,11 +89,33 @@ accepted with rationale.
   swallowed and logged rather than leaking partial state to the caller (the S3/local deletion is
   idempotent and reconciled by cleanup tooling in a later Sprint).
 
+## Medical Report OCR & Parsing Threat Model (Sprint 4)
+
+- **Untrusted input is never trusted as content**: the OCR/parsing pipeline runs only after the
+  Sprint 3 magic-bytes allow-list has accepted the file. Document text is treated as attacker
+  data end-to-end.
+- **Resource bounding**: processing is capped at `OCR_MAX_PAGES` (default 10) PDF pages and
+  `OCR_MAX_IMAGE_DIMENSION` (default 3000 px, oversized images downscaled before OCR); render
+  scale is capped at `OCR_SCALE` (max 4). No unbounded loops, decompression bombs, or
+  uncontrolled rasterization.
+- **No third-party network egress**: OCR runs in-process with tesseract.js (WASM). The English
+  model and the rendering font are vendored in the repository, so neither CI, containers, nor
+  the preview environment fetch anything at runtime; `OCR_LANG_PATH` only points at local
+  model files. Uploaded PHI never leaves the platform.
+- **Failure isolation**: a failed parse (empty or illegible document) sets the report status to
+  `FAILED` with a `processingError`; the upload still returns `201`, the file remains stored,
+  and no partial findings are persisted. Findings are replaced atomically (delete-then-create)
+  on re-processing, so stale or leaked rows cannot accumulate.
+- **No PHI in audit or logs**: processing is audited as `DATA.REPORT_PROCESSED` with only
+  status, finding count, and error message; document text and findings are never written to
+  audit entries or structured logs.
+- **Model integrity**: the vendored `eng.traineddata.gz` is a static asset reviewed at commit
+  time; its hash is pinned in the release checklist.
+
 ## Upcoming Controls (per Sprint)
 
-- **Sprint 4**: OCR parsing pipeline, per-file processing status transitions, malware-scan hook
-  for uploaded files.
-- **Sprint 5**: prompt-injection hardening, output filtering, disclaimers enforced at the AI layer.
+- **Sprint 5**: malware-scan hook for uploaded files, prompt-injection hardening, output
+  filtering, disclaimers enforced at the AI layer.
 - **Sprint 9**: time-based one-time tokens for medication reminders.
 - **Sprint 13**: admin audit log reader, role escalation guardrails.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.

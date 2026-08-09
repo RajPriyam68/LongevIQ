@@ -1,6 +1,7 @@
 import type {
   MedicalReport,
   ReportCategory,
+  ReportDetail,
   ReportListResult,
   ReportStatus,
   UpdateReportInput,
@@ -50,8 +51,8 @@ export function apiListReports(params: ListReportsParams = {}): Promise<ReportLi
   return apiGet<ReportListResult>(`/reports${suffix ? `?${suffix}` : ''}`);
 }
 
-export function apiGetReport(id: string): Promise<{ report: MedicalReport }> {
-  return apiGet<{ report: MedicalReport }>(`/reports/${id}`);
+export function apiGetReport(id: string): Promise<{ report: ReportDetail }> {
+  return apiGet<{ report: ReportDetail }>(`/reports/${id}`);
 }
 
 export function apiUpdateReport(

@@ -37,6 +37,9 @@ uploads/
 .uploads/
 tmp/
 
+# OCR runtime artifacts (tesseract.js decompresses models into cwd)
+*.traineddata
+
 # Prisma
 prisma/migrations/README.md
 *.db

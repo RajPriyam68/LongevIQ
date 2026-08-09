@@ -1,4 +1,11 @@
-import type { MedicalReport, Prisma, ReportCategory, ReportStatus } from '@prisma/client';
+import type {
+  MedicalReport,
+  Prisma,
+  ReportCategory,
+  ReportFinding,
+  ReportFindingFlag,
+  ReportStatus,
+} from '@prisma/client';
 
 export interface CreateMedicalReportInput {
   userId: string;
@@ -14,6 +21,24 @@ export interface CreateMedicalReportInput {
   storageKey: string;
 }
 
+export interface ReportFindingInput {
+  name: string;
+  value: string;
+  unit?: string | null;
+  referenceRange?: string | null;
+  flag?: ReportFindingFlag | null;
+  confidence: number;
+  sortOrder: number;
+}
+
+export interface CompleteProcessingInput {
+  status: 'PARSED' | 'FAILED';
+  parsedText?: string | null;
+  processingError?: string | null;
+  parsedAt: Date;
+  findings?: ReportFindingInput[];
+}
+
 export interface ListReportsFilter {
   category?: ReportCategory;
   status?: ReportStatus;
@@ -22,14 +47,23 @@ export interface ListReportsFilter {
   sort: 'asc' | 'desc';
 }
 
+export interface MedicalReportWithFindings extends MedicalReport {
+  findings: ReportFinding[];
+}
+
 export interface ReportsRepository {
   create(input: CreateMedicalReportInput): Promise<MedicalReport>;
   findById(id: string): Promise<MedicalReport | null>;
+  findByIdWithFindings(id: string): Promise<MedicalReportWithFindings | null>;
   listByUser(
     userId: string,
     filter: ListReportsFilter,
   ): Promise<{ items: MedicalReport[]; total: number }>;
   update(id: string, data: Prisma.MedicalReportUpdateInput): Promise<MedicalReport>;
+  completeProcessing(
+    id: string,
+    input: CompleteProcessingInput,
+  ): Promise<MedicalReportWithFindings>;
   delete(id: string): Promise<void>;
 }
 

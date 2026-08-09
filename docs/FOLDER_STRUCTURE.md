@@ -63,13 +63,26 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── metrics.repository.types.ts
 │   │   │   │   │   ├── metrics.routes.ts
 │   │   │   │   │   └── metrics.service.ts
-│   │   │   │   ├── reports/           # Medical report upload & management
+│   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
 │   │   │   │   │   ├── reports.repository.types.ts
 │   │   │   │   │   ├── reports.routes.ts
 │   │   │   │   │   ├── reports.service.ts
 │   │   │   │   │   ├── upload-report.ts          # multer memory storage
+│   │   │   │   │   ├── ocr/                      # Sprint 4 OCR pipeline
+│   │   │   │   │   │   ├── image-preprocessor.ts # downscale oversized images
+│   │   │   │   │   │   ├── ocr-config.ts         # OCR_* env-derived settings
+│   │   │   │   │   │   ├── ocr.types.ts          # OcrEngine contract
+│   │   │   │   │   │   ├── pdf-page-renderer.ts  # pdfjs -> @napi-rs/canvas PNG
+│   │   │   │   │   │   ├── pdf-text-extractor.ts # pdfjs embedded-text extraction
+│   │   │   │   │   │   ├── report-ocr.ts         # orchestrates PDF/image OCR
+│   │   │   │   │   │   └── tesseract-ocr.ts      # tesseract.js WASM (lazy worker)
+│   │   │   │   │   ├── parsing/                  # Sprint 4 structured extraction
+│   │   │   │   │   │   ├── lab-lexicon.ts        # canonical tests + OCR-noise aliases
+│   │   │   │   │   │   └── report-parser.ts      # findings parser (ranges/flags/conf.)
+│   │   │   │   │   ├── processing/
+│   │   │   │   │   │   └── report-processor.ts   # OCR -> parser facade
 │   │   │   │   │   └── storage/
 │   │   │   │   │       ├── file-inspection.ts    # magic-bytes file-type allow-list
 │   │   │   │   │       ├── local-report-storage.ts
@@ -88,16 +101,21 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │       └── logger.ts          # pino logger
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
-│   │   │   ├── fakes.ts               # Fake repositories + storage + email service
+│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor
 │   │   │   ├── health.spec.ts         # API tests (supertest)
 │   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
-│   │   │   ├── reports.service.spec.ts# Reports unit tests (fake storage)
+│   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
+│   │   │   ├── report-parser.spec.ts  # Findings parser tests
+│   │   │   ├── reports.service.spec.ts# Reports unit tests (fake storage/processor)
 │   │   │   ├── integration/
 │   │   │   │   ├── auth.integration.spec.ts    # DB-backed API tests
 │   │   │   │   ├── global-setup.ts            # migrates test DB before run
 │   │   │   │   ├── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
 │   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
+│   │   ├── assets/                    # Vendored OCR assets (committed)
+│   │   │   ├── tessdata/eng.traineddata.gz  # tesseract English model
+│   │   │   └── fonts/DejaVuSans.ttf        # deterministic PDF rendering font
 │   │   ├── tsconfig.json
 │   │   ├── tsconfig.test.json
 │   │   └── vitest.config.ts
@@ -153,8 +171,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
 │       │   │   │   └── theme-provider.tsx   # next-themes
-│       │   │   ├── reports/           # Sprint 3 report UI
-│       │   │   │   ├── report-list.tsx        # Table + pagination + download/delete
+│       │   │   ├── reports/           # Sprint 3/4 report UI
+│       │   │   │   ├── report-findings.tsx   # Findings table + extracted text
+│       │   │   │   ├── report-list.tsx       # Table + pagination + download/delete
 │       │   │   │   └── report-upload-form.tsx # Drag-and-drop upload (RHF + zod)
 │       │   │   └── ui/                      # shadcn/ui primitives
 │       │   │       ├── badge.tsx
@@ -176,7 +195,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── metrics-format.ts  # Value/date/delta formatting helpers
 │       │   │   ├── metrics-format.spec.ts
 │       │   │   ├── reports-api.ts     # Typed report endpoints (multipart upload)
-│       │   │   ├── reports-format.ts  # Category/status/file-size helpers
+│       │   │   ├── reports-format.ts  # Category/status/flag/file-size helpers
 │       │   │   ├── reports-format.spec.ts
 │       │   │   ├── utils.ts           # cn() helper
 │       │   │   └── utils.spec.ts
@@ -205,7 +224,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/api.ts           # API envelope + pagination types
 │       │   ├── types/enums.ts         # UserRole, ReportStatus, ReportCategory, HealthMetricType
 │       │   ├── types/metrics.ts       # HealthMetric, HEALTH_METRIC_META, DashboardOverview
-│       │   ├── types/reports.ts       # MedicalReport, ReportListResult, ReportCategory labels
+│       │   ├── types/reports.ts       # MedicalReport, ReportFinding, ReportDetail, labels
 │       │   ├── types/user.ts          # PublicUser, AuthSession
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
@@ -217,6 +236,6 @@ This document tracks the repository structure. It is updated at the end of every
 
 ## Planned Growth
 
-- `apps/api/src/modules/reports`, `ai`, ... per Sprint.
-- `apps/web/src/app/(dashboard)/...` refined UI from Sprint 3.
+- `apps/api/src/modules/ai/` and further report modules per Sprint.
+- `apps/web/src/app/(dashboard)/...` refined UI from Sprint 4.
 - AI services (`apps/api/src/modules/ai/`) from Sprint 5.

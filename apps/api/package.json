@@ -18,6 +18,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",
     "@longeviq/shared": "*",
+    "@napi-rs/canvas": "^1.0.3",
     "@prisma/client": "^6.2.1",
     "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",
@@ -28,8 +29,10 @@
     "jose": "^6.2.8",
     "multer": "^2.2.0",
     "nodemailer": "^9.0.4",
+    "pdfjs-dist": "^6.2.108",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
+    "tesseract.js": "^7.0.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -39,7 +42,9 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^22.10.5",
     "@types/nodemailer": "^6.4.17",
+    "@types/pdfkit": "^0.17.6",
     "@types/supertest": "^6.0.2",
+    "pdfkit": "^0.19.1",
     "pino-pretty": "^13.0.0",
     "prisma": "^6.2.1",
     "supertest": "^7.0.0",

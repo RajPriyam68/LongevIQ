@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CreateReportMetadata } from '@longeviq/shared';
 import { ReportsService } from '../src/modules/reports/reports.service.js';
-import { FakeReportStorage, FakeReportsRepository } from './fakes.js';
+import { FakeReportProcessor, FakeReportStorage, FakeReportsRepository } from './fakes.js';
 
 const pdfBuffer = Buffer.concat([
   Buffer.from('%PDF-1.7\n'),
@@ -25,22 +25,29 @@ function metadata(overrides: Partial<CreateReportMetadata> = {}): CreateReportMe
   };
 }
 
-function makeService(options: { maxUploadBytes?: number } = {}) {
+function makeService(options: { maxUploadBytes?: number; processor?: FakeReportProcessor } = {}) {
   const repository = new FakeReportsRepository();
   const storage = new FakeReportStorage();
-  const service = new ReportsService(repository, storage, repository, options.maxUploadBytes);
-  return { repository, storage, service };
+  const processor = options.processor ?? new FakeReportProcessor();
+  const service = new ReportsService(
+    repository,
+    storage,
+    processor,
+    repository,
+    options.maxUploadBytes,
+  );
+  return { repository, storage, processor, service };
 }
 
 describe('ReportsService', () => {
-  it('creates a report, stores the file, and audits', async () => {
-    const { repository, storage, service } = makeService();
+  it('creates a report, processes it, and audits', async () => {
+    const { repository, storage, processor, service } = makeService();
     const report = await service.createReport('usr_a', {
       file: { originalName: 'bloodwork.pdf', sizeBytes: pdfBuffer.length, data: pdfBuffer },
       metadata: metadata(),
     });
 
-    expect(report.status).toBe('UPLOADED');
+    expect(report.status).toBe('PARSED');
     expect(report.mimeType).toBe('application/pdf');
     expect(report.fileName).toBe('bloodwork.pdf');
     expect(report.category).toBe('BLOODWORK');
@@ -49,7 +56,13 @@ describe('ReportsService', () => {
     expect(storage.objects.size).toBe(1);
     expect(repository.reports.size).toBe(1);
     expect(repository.reports.get(report.id)?.storageKey).toBe([...storage.objects.keys()][0]);
+    expect(processor.calls).toHaveLength(1);
+    expect(processor.calls[0]).toMatchObject({
+      mimeType: 'application/pdf',
+      category: 'BLOODWORK',
+    });
     expect(repository.auditCalls.map((call) => call.action)).toContain('DATA.REPORT_CREATE');
+    expect(repository.auditCalls.map((call) => call.action)).toContain('DATA.REPORT_PROCESSED');
   });
 
   it('rejects a missing file', async () => {
@@ -192,5 +205,90 @@ describe('ReportsService', () => {
     expect(download.fileName).toBe('bloodwork.pdf');
     expect(download.mimeType).toBe('application/pdf');
     expect(download.data.equals(pdfBuffer)).toBe(true);
+  });
+
+  it('persists parsed text and findings and returns them in the detail', async () => {
+    const processor = new FakeReportProcessor();
+    processor.findings = [
+      {
+        id: 'f1',
+        reportId: '',
+        name: 'Glucose',
+        value: '95',
+        unit: 'mg/dL',
+        referenceRange: '70 - 99',
+        flag: 'NORMAL',
+        confidence: 0.95,
+        sortOrder: 0,
+        createdAt: new Date(),
+      },
+    ];
+    const { service } = makeService({ processor });
+    const report = await service.createReport('usr_a', {
+      file: { originalName: 'a.pdf', sizeBytes: pdfBuffer.length, data: pdfBuffer },
+      metadata: metadata(),
+    });
+
+    expect(report.status).toBe('PARSED');
+
+    const detail = await service.getReport('usr_a', report.id);
+    expect(detail.status).toBe('PARSED');
+    expect(detail.parsedText).toBe('GLUCOSE 95 mg/dL (ref 70-99)');
+    expect(detail.parsedAt).not.toBeNull();
+    expect(detail.findings).toHaveLength(1);
+    expect(detail.findings[0]).toMatchObject({
+      name: 'Glucose',
+      value: '95',
+      unit: 'mg/dL',
+      referenceRange: '70 - 99',
+      flag: 'NORMAL',
+    });
+  });
+
+  it('marks the report FAILED when processing throws, without losing the upload', async () => {
+    const processor = new FakeReportProcessor();
+    processor.error = new Error('Tesseract crashed');
+    const { repository, service } = makeService({ processor });
+
+    const report = await service.createReport('usr_a', {
+      file: { originalName: 'a.pdf', sizeBytes: pdfBuffer.length, data: pdfBuffer },
+      metadata: metadata(),
+    });
+
+    expect(report.status).toBe('FAILED');
+    expect(repository.reports.size).toBe(1);
+
+    const detail = await service.getReport('usr_a', report.id);
+    expect(detail.status).toBe('FAILED');
+    expect(detail.processingError).toBe('Tesseract crashed');
+    expect(detail.findings).toHaveLength(0);
+    expect(repository.auditCalls.map((call) => call.action)).toContain('DATA.REPORT_PROCESSED');
+  });
+
+  it('hides processing details and findings for other users', async () => {
+    const processor = new FakeReportProcessor();
+    processor.findings = [
+      {
+        id: 'f1',
+        reportId: '',
+        name: 'Glucose',
+        value: '95',
+        unit: 'mg/dL',
+        referenceRange: '70 - 99',
+        flag: 'NORMAL',
+        confidence: 0.95,
+        sortOrder: 0,
+        createdAt: new Date(),
+      },
+    ];
+    const { service } = makeService({ processor });
+    const report = await service.createReport('usr_a', {
+      file: { originalName: 'a.pdf', sizeBytes: pdfBuffer.length, data: pdfBuffer },
+      metadata: metadata(),
+    });
+
+    await expect(service.getReport('usr_b', report.id)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
   });
 });

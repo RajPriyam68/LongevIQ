@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   formatFileSize,
   reportCategoryLabel,
+  reportFindingFlagLabel,
+  reportFindingFlagTone,
   reportStatusLabel,
   reportStatusTone,
 } from './reports-format';
@@ -29,6 +31,22 @@ describe('reportStatusTone', () => {
     expect(reportStatusTone('PARSED')).toBe('success');
     expect(reportStatusTone('FAILED')).toBe('destructive');
     expect(reportStatusTone('UPLOADED')).toBe('default');
+  });
+});
+
+describe('reportFindingFlagLabel', () => {
+  it('maps every finding flag to a label', () => {
+    expect(reportFindingFlagLabel('NORMAL')).toBe('Normal');
+    expect(reportFindingFlagLabel('HIGH')).toBe('High');
+    expect(reportFindingFlagLabel('LOW')).toBe('Low');
+  });
+});
+
+describe('reportFindingFlagTone', () => {
+  it('maps normal to success, high to destructive, and low to warning', () => {
+    expect(reportFindingFlagTone('NORMAL')).toBe('success');
+    expect(reportFindingFlagTone('HIGH')).toBe('destructive');
+    expect(reportFindingFlagTone('LOW')).toBe('warning');
   });
 });
 

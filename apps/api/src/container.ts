@@ -16,6 +16,11 @@ import { ReportsService } from './modules/reports/reports.service.js';
 import type { ReportsRepository } from './modules/reports/reports.repository.types.js';
 import { createReportStorage } from './modules/reports/storage/report-storage.js';
 import type { ReportStorage } from './modules/reports/storage/report-storage.types.js';
+import { ReportOcrService } from './modules/reports/ocr/report-ocr.js';
+import { createOcrConfig } from './modules/reports/ocr/ocr-config.js';
+import { ReportParser } from './modules/reports/parsing/report-parser.js';
+import { ReportProcessorImpl } from './modules/reports/processing/report-processor.js';
+import type { ReportProcessor } from './modules/reports/processing/report-processor.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -29,6 +34,7 @@ export interface Container {
   dashboardService: DashboardService;
   reportsRepository: ReportsRepository;
   reportStorage: ReportStorage;
+  reportProcessor: ReportProcessor;
   reportsService: ReportsService;
 }
 
@@ -63,9 +69,18 @@ export function createContainer(overrides?: Partial<Container>): Container {
 
   const reportsRepository = overrides?.reportsRepository ?? new PrismaReportsRepository();
   const reportStorage = overrides?.reportStorage ?? createReportStorage(env);
+  const reportProcessor =
+    overrides?.reportProcessor ??
+    new ReportProcessorImpl(new ReportOcrService(createOcrConfig(env)), new ReportParser());
   const reportsService =
     overrides?.reportsService ??
-    new ReportsService(reportsRepository, reportStorage, auditSink, env.MAX_UPLOAD_BYTES);
+    new ReportsService(
+      reportsRepository,
+      reportStorage,
+      reportProcessor,
+      auditSink,
+      env.MAX_UPLOAD_BYTES,
+    );
 
   return {
     authRepository,
@@ -79,6 +94,7 @@ export function createContainer(overrides?: Partial<Container>): Container {
     dashboardService,
     reportsRepository,
     reportStorage,
+    reportProcessor,
     reportsService,
   };
 }

@@ -35,10 +35,20 @@ missing required variables cause the process to **fail fast**.
 | `S3_ENDPOINT`            | no       | *(empty)*              | Custom S3-compatible endpoint (e.g. MinIO/LocalStack) |
 | `S3_ACCESS_KEY_ID`       | no       | *(empty)*              | S3 credentials (optional; falls back to the SDK credential chain) |
 | `S3_SECRET_ACCESS_KEY`   | no       | *(empty)*              | S3 credentials                                         |
+| `OCR_LANG_PATH`          | no       | `apps/api/assets/tessdata` | Directory containing `*.traineddata.gz` OCR models   |
+| `OCR_MIN_TEXT_LENGTH`    | no       | `60`                   | Minimum extracted characters before a PDF is considered text-based |
+| `OCR_MAX_PAGES`          | no       | `10` (max 50)          | Max PDF pages rendered/OCR'd per report               |
+| `OCR_SCALE`              | no       | `2` (max 4)            | Render scale for OCR (higher = sharper, slower)      |
+| `OCR_MAX_IMAGE_DIMENSION`| no       | `3000`                 | Max pixel dimension for OCR'd images (larger ones are downscaled) |
 
 > **Development email fallback.** When `SMTP_HOST` is unset, verification emails are logged to the
 > server console and the verification link is returned in the API response. This only happens when
 > `NODE_ENV !== 'production'`; production never returns verification URLs.
+
+> **OCR assets.** The English tesseract model (`eng.traineddata.gz`) and the DejaVu Sans font are
+> vendored under `apps/api/assets` so OCR works deterministically in CI, containers, and the preview
+> environment without any runtime downloads. Set `OCR_LANG_PATH` to point at a different model
+> directory if needed.
 
 ### Placeholders for upcoming Sprints
 
