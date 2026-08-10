@@ -1,4 +1,5 @@
 import type { User, UserRole } from '@prisma/client';
+import type { KnowledgeSearchResult } from '@longeviq/shared';
 import type {
   AuthRepository,
   CreateRefreshTokenInput,
@@ -505,4 +506,155 @@ export interface ReportListFilter {
   page: number;
   limit: number;
   sort: 'asc' | 'desc';
+}
+
+export interface KnowledgeDocumentLike {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string | null;
+  category: string;
+  source: string | null;
+  status: string;
+  language: string;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  chunks: Array<{
+    id: string;
+    documentId: string;
+    chunkIndex: number;
+    title: string | null;
+    content: string;
+    createdAt: Date;
+  }>;
+}
+
+export class FakeKnowledgeRepository {
+  documents = new Map<string, KnowledgeDocumentLike>();
+  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
+
+  async createDocument(input: {
+    slug: string;
+    title: string;
+    summary?: string | null;
+    category: string;
+    source?: string | null;
+    status: string;
+    language: string;
+    createdBy?: string | null;
+  }) {
+    const now = new Date();
+    const document: KnowledgeDocumentLike = {
+      id: nextId('kdoc'),
+      slug: input.slug,
+      title: input.title,
+      summary: input.summary ?? null,
+      category: input.category,
+      source: input.source ?? null,
+      status: input.status,
+      language: input.language,
+      createdBy: input.createdBy ?? null,
+      createdAt: now,
+      updatedAt: now,
+      chunks: [],
+    };
+    this.documents.set(document.id, document);
+    return document;
+  }
+
+  async findDocumentById(id: string) {
+    return this.documents.get(id) ?? null;
+  }
+
+  async findDocumentBySlug(slug: string) {
+    for (const document of this.documents.values()) {
+      if (document.slug === slug) return document;
+    }
+    return null;
+  }
+
+  async listDocuments(filter: { page: number; limit: number; category?: string; status?: string }) {
+    const items = [...this.documents.values()]
+      .filter((d) => (filter.category ? d.category === filter.category : true))
+      .filter((d) => (filter.status ? d.status === filter.status : true))
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const start = (filter.page - 1) * filter.limit;
+    return { items: items.slice(start, start + filter.limit), total: items.length };
+  }
+
+  async updateDocument(id: string, data: Record<string, unknown>) {
+    const document = this.documents.get(id);
+    if (!document) return null;
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) clean[key] = value;
+    }
+    const updated = { ...document, ...clean, updatedAt: new Date() } as KnowledgeDocumentLike;
+    this.documents.set(id, updated);
+    return updated;
+  }
+
+  async deleteDocument(id: string) {
+    this.documents.delete(id);
+  }
+
+  async findDocumentByIdWithChunks(id: string) {
+    return this.documents.get(id) ?? null;
+  }
+
+  async replaceChunks(
+    documentId: string,
+    chunks: Array<{ chunkIndex: number; title?: string | null; content: string }>,
+  ) {
+    const document = this.documents.get(documentId);
+    if (!document) throw new Error(`document ${documentId} not found`);
+    const now = new Date();
+    document.chunks = chunks.map((chunk) => ({
+      id: nextId('kchunk'),
+      documentId,
+      chunkIndex: chunk.chunkIndex,
+      title: chunk.title ?? null,
+      content: chunk.content,
+      createdAt: now,
+    }));
+  }
+
+  async search(filter: { query: string; limit: number; category?: string }) {
+    const query = filter.query.toLowerCase();
+    const hits: Array<{
+      document: KnowledgeDocumentLike;
+      chunk: KnowledgeDocumentLike['chunks'][number];
+    }> = [];
+    for (const document of this.documents.values()) {
+      if (document.status !== 'PUBLISHED') continue;
+      if (filter.category && document.category !== filter.category) continue;
+      for (const chunk of document.chunks) {
+        if (chunk.content.toLowerCase().includes(query)) {
+          hits.push({ document, chunk });
+        }
+      }
+    }
+    return hits
+      .sort((a, b) => a.chunk.content.length - b.chunk.content.length)
+      .slice(0, filter.limit)
+      .map(({ document, chunk }) => ({
+        chunkId: chunk.id,
+        documentId: document.id,
+        slug: document.slug,
+        documentTitle: document.title,
+        category: document.category as KnowledgeSearchResult['category'],
+        source: document.source,
+        chunkIndex: chunk.chunkIndex,
+        title: chunk.title,
+        snippet: chunk.content.slice(0, 240),
+        content: chunk.content,
+        score: 1,
+      }));
+  }
+
+  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+    this.auditCalls.push(input);
+    return Promise.resolve();
+  }
 }

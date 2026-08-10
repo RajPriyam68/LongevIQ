@@ -48,6 +48,9 @@ function AuthButtons({ compact = false }: { compact?: boolean }) {
           <Link href="/reports">Reports</Link>
         </Button>
         <Button asChild variant="ghost" className="gap-2">
+          <Link href="/knowledge">Knowledge</Link>
+        </Button>
+        <Button asChild variant="ghost" className="gap-2">
           <Link href="/account">
             <span className="flex size-6 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
               {initials}

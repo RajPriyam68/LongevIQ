@@ -16,6 +16,7 @@ import { createUsersRouter } from './modules/users/users.routes.js';
 import { createMetricsRouter } from './modules/metrics/metrics.routes.js';
 import { createDashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { createReportsRouter } from './modules/reports/reports.routes.js';
+import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes.js';
 
 export interface AppOptions {
   container?: Partial<Container>;
@@ -88,6 +89,11 @@ export function createApp(options: AppOptions = {}): Express {
     '/reports',
     requireAuth(container.tokenService),
     createReportsRouter(container.reportsService),
+  );
+  apiRouter.use(
+    '/knowledge',
+    requireAuth(container.tokenService),
+    createKnowledgeRouter(container.knowledgeService),
   );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);

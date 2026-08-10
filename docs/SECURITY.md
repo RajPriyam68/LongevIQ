@@ -112,10 +112,37 @@ accepted with rationale.
 - **Model integrity**: the vendored `eng.traineddata.gz` is a static asset reviewed at commit
   time; its hash is pinned in the release checklist.
 
+## Knowledge Base Threat Model (Sprint 5)
+
+- **Authenticated reads only**: search, browse, and detail endpoints sit behind `requireAuth`.
+  Draft documents are invisible to non-admins (list forced to `PUBLISHED`, detail returns `404`),
+  so unpublished content can never leak through search or direct-id access.
+- **ADMIN-only writes, enforced twice**: create/update/delete carry `requireRoles('ADMIN')` at
+  the route layer and the service re-checks the caller role, so an accidentally misconfigured
+  route cannot widen the write surface.
+- **Slug uniqueness as an enumeration guard**: `slug` is a unique index; duplicates return
+  `409`, and document ids are opaque Prisma cuids — there is no guessable sequential id space.
+- **Query safety**: search text is bound through Prisma tagged-template parameters and parsed by
+  `websearch_to_tsquery`, which is designed to reject malformed/operator abuse rather than throw
+  or allow injection; category/status filters are enum-validated before reaching SQL.
+- **Size bounding**: content is capped at 1,000,000 characters by the shared zod validator and
+  again by the service; search `q` is capped at 200 chars and `limit` at 50, so no unbounded
+  `ts_headline` work.
+- **No HTML rendering of snippets**: Postgres `ts_headline` emits `<mark>` markers; the web app
+  splits them with React elements instead of `innerHTML`, so authored content cannot inject
+  markup into the page.
+- **Audited content lifecycle**: `DATA.KNOWLEDGE_CREATE` / `UPDATE` / `DELETE` record actor,
+  slug, category, and chunk count (never content); the audit trail follows the existing
+  `AuditLog` principles.
+- **Schema is pgvector-ready**: the tsvector column and GIN index are pure PostgreSQL, so the
+  retrieval layer works without any optional extension. A future semantic layer adds an
+  embedding column behind the same repository interface; any embedding keys are user-provided
+  (`USER_LLM_*`), never read from the platform environment.
+
 ## Upcoming Controls (per Sprint)
 
-- **Sprint 5**: malware-scan hook for uploaded files, prompt-injection hardening, output
-  filtering, disclaimers enforced at the AI layer.
+- **Sprint 6**: prompt-injection hardening, output filtering, disclaimers enforced at the AI
+  layer; optional malware-scan hook for uploaded files.
 - **Sprint 9**: time-based one-time tokens for medication reminders.
 - **Sprint 13**: admin audit log reader, role escalation guardrails.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.

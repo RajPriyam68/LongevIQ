@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 3)
+## Current Structure (Sprint 5)
 
 ```
 .
@@ -22,9 +22,10 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── package.json
 │   │   ├── prisma/
 │   │   │   ├── .env.example           # DATABASE_URL template
-│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric, MedicalReport
-│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics, add_medical_reports (20260808133949)
+│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric, MedicalReport, KnowledgeDocument, KnowledgeChunk
+│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics, add_medical_reports, add_knowledge_base (20260810021451)
 │   │   │   └── seed.ts                # Demo users (admin/doctor/user)
+│   │   │   └── seed-knowledge.ts      # 13 curated knowledge articles (kb:seed)
 │   │   ├── src/
 │   │   │   ├── app.ts                 # Express app factory
 │   │   │   ├── server.ts              # Bootstrap + graceful shutdown
@@ -57,6 +58,14 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── health.controller.ts
 │   │   │   │   │   ├── health.routes.ts
 │   │   │   │   │   └── health.service.ts
+│   │   │   │   ├── knowledge/         # Medical knowledge base (Sprint 5)
+│   │   │   │   │   ├── knowledge.controller.ts
+│   │   │   │   │   ├── knowledge.repository.ts      # Prisma + raw FTS SQL
+│   │   │   │   │   ├── knowledge.repository.types.ts
+│   │   │   │   │   ├── knowledge.routes.ts          # search/list/get + ADMIN writes
+│   │   │   │   │   ├── knowledge.service.ts         # chunking + RBAC + audit
+│   │   │   │   │   └── chunking/
+│   │   │   │   │       └── text-chunker.ts          # markdown-aware chunker
 │   │   │   │   ├── metrics/           # HealthMetric CRUD
 │   │   │   │   │   ├── metrics.controller.ts
 │   │   │   │   │   ├── metrics.repository.ts
@@ -101,8 +110,10 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │       └── logger.ts          # pino logger
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
-│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor
+│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge
 │   │   │   ├── health.spec.ts         # API tests (supertest)
+│   │   │   ├── knowledge-chunker.spec.ts  # Markdown chunker unit tests
+│   │   │   ├── knowledge.service.spec.ts  # Knowledge service unit tests
 │   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
 │   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
 │   │   │   ├── report-parser.spec.ts  # Findings parser tests
@@ -110,6 +121,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── integration/
 │   │   │   │   ├── auth.integration.spec.ts    # DB-backed API tests
 │   │   │   │   ├── global-setup.ts            # migrates test DB before run
+│   │   │   │   ├── knowledge.integration.spec.ts # DB-backed knowledge ingest/search tests
 │   │   │   │   ├── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
 │   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
@@ -145,6 +157,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── verify-email/page.tsx
 │       │   │   ├── dashboard/
 │       │   │   │   └── page.tsx       # Health dashboard (protected)
+│       │   │   ├── knowledge/
+│       │   │   │   ├── [id]/page.tsx  # Article detail (protected)
+│       │   │   │   └── page.tsx       # Search + browse knowledge base (protected)
 │       │   │   └── reports/
 │       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
 │       │   │       └── page.tsx       # Report list + upload (protected)
@@ -166,7 +181,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── layout/
 │       │   │   │   ├── medical-disclaimer.tsx
 │       │   │   │   ├── site-footer.tsx
-│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports links)
+│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports/Knowledge links)
 │       │   │   │   └── theme-toggle.tsx
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
@@ -191,6 +206,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── auth-store.ts      # Zustand persist (accessToken/user)
 │       │   │   ├── auth-store.spec.ts
 │       │   │   ├── constants.ts
+│       │   │   ├── knowledge-api.ts   # Typed knowledge search/list/detail endpoints
+│       │   │   ├── knowledge-format.ts # Category labels + safe <mark> snippet splitter
+│       │   │   ├── knowledge-format.spec.ts
 │       │   │   ├── metrics-api.ts     # Typed metrics + dashboard endpoints
 │       │   │   ├── metrics-format.ts  # Value/date/delta formatting helpers
 │       │   │   ├── metrics-format.spec.ts
@@ -223,10 +241,12 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── constants/app.ts       # APP_NAME, MEDICAL_DISCLAIMER, ...
 │       │   ├── types/api.ts           # API envelope + pagination types
 │       │   ├── types/enums.ts         # UserRole, ReportStatus, ReportCategory, HealthMetricType
+│       │   ├── types/knowledge.ts     # KnowledgeCategory/Status, KnowledgeDocument, KnowledgeSearchResult
 │       │   ├── types/metrics.ts       # HealthMetric, HEALTH_METRIC_META, DashboardOverview
 │       │   ├── types/reports.ts       # MedicalReport, ReportFinding, ReportDetail, labels
 │       │   ├── types/user.ts          # PublicUser, AuthSession
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
+│       │   ├── validators/knowledge.ts # create/update/search/list schemas + inferred types
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
 │       │   ├── validators/reports.ts  # createReportMetadata/updateReport/listReportsQuery schemas
 │       │   └── index.ts
@@ -238,4 +258,6 @@ This document tracks the repository structure. It is updated at the end of every
 
 - `apps/api/src/modules/ai/` and further report modules per Sprint.
 - `apps/web/src/app/(dashboard)/...` refined UI from Sprint 4.
+- A semantic retrieval layer (pgvector embeddings behind the same `KnowledgeRepository`
+  interface, driven by user-provided `USER_LLM_*` keys) to complement the Sprint 5 FTS engine.
 - AI services (`apps/api/src/modules/ai/`) from Sprint 5.

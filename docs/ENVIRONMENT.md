@@ -50,15 +50,22 @@ missing required variables cause the process to **fail fast**.
 > environment without any runtime downloads. Set `OCR_LANG_PATH` to point at a different model
 > directory if needed.
 
+> **Knowledge base (Sprint 5).** The retrieval engine is PostgreSQL full-text search over chunked
+> `KnowledgeChunk` rows; it needs no extra configuration beyond `DATABASE_URL`. A future semantic
+> layer will add pgvector embeddings behind the same repository interface and is designed to be
+> driven by user-provided keys (`USER_LLM_API_KEY` / `USER_LLM_BASE_URL` / `USER_LLM_MODEL`),
+> never by platform environment credentials.
+
 ### Placeholders for upcoming Sprints
 
 These are documented now for planning; they are consumed by later Sprints:
 
 | Variable               | Sprint | Purpose                        |
 | ---------------------- | ------ | ------------------------------ |
-| `OPENAI_API_KEY`       | 5      | LLM provider                   |
-| `GOOGLE_GEMINI_API_KEY`| 5      | LLM provider                   |
-| `OPENAI_EMBEDDING_MODEL`| 5     | Embedding model name           |
+| `USER_LLM_API_KEY`     | 6      | LLM provider key (user-supplied)|
+| `USER_LLM_BASE_URL`    | 6      | LLM base URL (user-supplied)    |
+| `USER_LLM_MODEL`       | 6      | LLM model name                 |
+| `OPENAI_EMBEDDING_MODEL`| 6     | Semantic-layer embedding model |
 | `REDIS_URL`            | 9/14   | Queues / notifications         |
 
 ## Web (`apps/web/.env`)

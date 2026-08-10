@@ -21,6 +21,9 @@ import { createOcrConfig } from './modules/reports/ocr/ocr-config.js';
 import { ReportParser } from './modules/reports/parsing/report-parser.js';
 import { ReportProcessorImpl } from './modules/reports/processing/report-processor.js';
 import type { ReportProcessor } from './modules/reports/processing/report-processor.js';
+import { PrismaKnowledgeRepository } from './modules/knowledge/knowledge.repository.js';
+import { KnowledgeService } from './modules/knowledge/knowledge.service.js';
+import type { KnowledgeRepository } from './modules/knowledge/knowledge.repository.types.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -36,6 +39,8 @@ export interface Container {
   reportStorage: ReportStorage;
   reportProcessor: ReportProcessor;
   reportsService: ReportsService;
+  knowledgeRepository: KnowledgeRepository;
+  knowledgeService: KnowledgeService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -82,6 +87,10 @@ export function createContainer(overrides?: Partial<Container>): Container {
       env.MAX_UPLOAD_BYTES,
     );
 
+  const knowledgeRepository = overrides?.knowledgeRepository ?? new PrismaKnowledgeRepository();
+  const knowledgeService =
+    overrides?.knowledgeService ?? new KnowledgeService(knowledgeRepository, auditSink);
+
   return {
     authRepository,
     tokenService,
@@ -96,5 +105,7 @@ export function createContainer(overrides?: Partial<Container>): Container {
     reportStorage,
     reportProcessor,
     reportsService,
+    knowledgeRepository,
+    knowledgeService,
   };
 }

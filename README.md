@@ -21,7 +21,7 @@ metrics, and receive educational nutrition, workout, and medication-reminder gui
                                                        │ Prisma
                                                 ┌──────┴──────┐
                                                 │ PostgreSQL │
-                                                │  + pgvector │
+                                                │ FTS + pgvec │
                                                 └─────────────┘
 ```
 
@@ -55,7 +55,7 @@ docs/         Architecture, API, environment and security documentation
 | ----------- | ----------------------------------------------------------------------------- |
 | Frontend    | Next.js 15, React 19, TypeScript, Tailwind CSS, shadcn/ui, RHF, Zod, TanStack Query, Zustand, Axios, Recharts, Framer Motion |
 | Backend     | Node.js 22, Express.js, TypeScript                                            |
-| Database    | PostgreSQL, Prisma ORM, pgvector                                               |
+| Database    | PostgreSQL, Prisma ORM, pgvector (FTS retrieval shipped in Sprint 5)     |
 | AI          | OpenAI-compatible models, Google Gemini, LangChain, RAG, OCR, Whisper, TTS    |
 | Auth        | JWT + refresh tokens, Google OAuth, RBAC                                      |
 | Storage     | AWS S3                                                                         |
@@ -101,6 +101,7 @@ npm run dev
 | `npm run test`          | Vitest suites for api and web                |
 | `npm run format`        | Format the whole repository with Prettier    |
 | `npm run format:check`  | Verify formatting                            |
+| `npm run kb:seed -w @longeviq/api` | Seed the knowledge base articles (idempotent) |
 
 ## Deployment
 
@@ -195,6 +196,32 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 - **Tests**: 75 API tests (unit + DB-backed integration + real tesseract OCR + parser) and
   30 web tests.
 
+### Sprint 5 — Medical Knowledge Base (Retrieval)
+
+- **Retrieval engine**: PostgreSQL full-text search (FTS) over a chunked knowledge base. Each
+  document is split by a markdown-aware chunker (section titles preserved, paragraphs never cut,
+  oversized paragraphs hard-split at sentence boundaries with overlap) and indexed as a
+  `tsvector` column backed by a GIN index. Queries use `websearch_to_tsquery` (plain-phrase
+  friendly) ranked by `ts_rank_cd` with `ts_headline` snippets (`<mark>` highlights). The schema
+  is pgvector-ready so a semantic layer can be layered on later with user-provided embedding keys.
+- **API**: under `/api/v1/knowledge` — search (`GET /search?q=&category=`), browse
+  (`GET /?page=&limit=&category=`), detail (`GET /:id`, drafts hidden from non-admins), and
+  ADMIN-only ingest (`POST /`), update (`PATCH /:id`), and delete (`DELETE /:id`). Writes are
+  chunked atomically (chunks replaced per document) and audit-logged (`DATA.KNOWLEDGE_*`).
+- **Content**: 13 curated educational articles (metrics, labs, nutrition, wellness) seeded by an
+  idempotent `kb:seed` CLI (upsert by slug) — run `npm run kb:seed -w @longeviq/api` after
+  `prisma migrate deploy`.
+- **Data model**: `KnowledgeDocument` (slug-unique, category/status enums, `createdBy` → User)
+  and `KnowledgeChunk` (Prisma migration `20260810021451_add_knowledge_base`) with a GIN index
+  on the `searchVector` tsvector column.
+- **Security**: search/list/detail require authentication; documents are visible only when
+  `PUBLISHED` (drafts are ADMIN-only); content writes require the `ADMIN` role both at the
+  middleware and service layer; the `@longeviq/shared` validators cap content at 1,000,000 chars.
+- **Frontend**: protected `/knowledge` page with full-text search, category filter pills,
+  highlight-safe snippets (no `innerHTML`), and a browseable library grid; `/knowledge/[id]`
+  renders the article as titled sections; the site header links to Knowledge for signed-in users.
+- **Tests**: 103 API tests (unit + DB-backed integration) and 35 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -206,7 +233,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 2      | Health dashboard **(done)**                                  |
 | 3      | Medical report upload & management **(done)**               |
 | 4      | OCR + medical report parsing **(done)**                    |
-| 5      | Medical knowledge base (RAG)                                 |
+| 5      | Medical knowledge base (RAG) **(done)**                    |
 | 6      | AI health assistant                                          |
 | 7      | Nutrition planner                                            |
 | 8      | Workout planner                                              |

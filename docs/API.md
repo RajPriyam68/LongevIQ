@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 4)
+## Current Endpoints (Sprint 5)
 
 ### Health check
 
@@ -560,6 +560,124 @@ Removes the database record and the stored file.
 
 **Errors**: `404 NOT_FOUND`.
 
+### Knowledge base
+
+All endpoints require `Authorization: Bearer <accessToken>`. The knowledge base holds curated,
+chunked educational articles; searches run PostgreSQL full-text search over published chunks.
+Create, update, and delete require the `ADMIN` role.
+
+#### Search the knowledge base
+
+`GET /api/v1/knowledge/search?q=HbA1c&limit=10&category=LABS`
+
+| Query     | Type   | Default | Notes                                    |
+| --------- | ------ | ------- | ---------------------------------------- |
+| `q`       | string | —       | Required search text (1–200 chars)       |
+| `limit`   | int    | 10      | Max results (1–50)                       |
+| `category`| enum   | —       | `METRICS`, `LABS`, `NUTRITION`, `WELLNESS` |
+
+Only `PUBLISHED` documents are searchable. Responses include a `snippet` with `<mark>` tags
+around matches and a `score` produced by `ts_rank_cd`.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "results": [
+      {
+        "chunkId": "clz...",
+        "documentId": "clz...",
+        "slug": "blood-glucose-and-hba1c",
+        "documentTitle": "Blood Glucose and HbA1c",
+        "category": "LABS",
+        "source": "LongevIQ Editorial",
+        "chunkIndex": 1,
+        "title": "What the numbers mean",
+        "snippet": "A normal <mark>HbA1c</mark> is below 5.7 percent.",
+        "content": "A normal fasting glucose is below 100 mg/dL. ...",
+        "score": 0.0253
+      }
+    ]
+  }
+}
+```
+
+#### List knowledge documents
+
+`GET /api/v1/knowledge?page=1&limit=20&category=NUTRITION&status=PUBLISHED`
+
+Non-admin users are always constrained to `PUBLISHED` documents; the `status` filter is only
+honored for admins.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "clz...",
+        "slug": "mediterranean-diet",
+        "title": "The Mediterranean Diet",
+        "summary": "The core principles of the Mediterranean diet.",
+        "category": "NUTRITION",
+        "source": "LongevIQ Editorial",
+        "status": "PUBLISHED",
+        "language": "english",
+        "createdAt": "2026-08-10T00:00:00.000Z",
+        "updatedAt": "2026-08-10T00:00:00.000Z"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 1, "totalPages": 1 }
+  }
+}
+```
+
+#### Get a knowledge document
+
+`GET /api/v1/knowledge/:id`
+
+Returns the document metadata plus its ordered chunks. Drafts return `404 NOT_FOUND` for
+non-admin users.
+
+#### Create a knowledge document (admin)
+
+`POST /api/v1/knowledge`
+
+| Field      | Type    | Notes                                              |
+| ---------- | ------- | -------------------------------------------------- |
+| `slug`     | string  | Unique, lowercase letters/digits/hyphens (≤120)    |
+| `title`    | string  | Required (≤150 chars)                              |
+| `summary`  | string  | Optional (≤400 chars)                              |
+| `category` | enum    | Default `WELLNESS`                                 |
+| `source`   | string  | Optional (≤100 chars)                              |
+| `status`   | enum    | `DRAFT` or `PUBLISHED` (default `DRAFT`)           |
+| `language` | string  | Default `english` (FTS uses the English config)    |
+| `content`  | string  | Required markdown (≤1,000,000 chars)               |
+
+The content is chunked server-side and each chunk is indexed for full-text search. A duplicate
+`slug` returns `409 CONFLICT`.
+
+**Response 201** — the full document with `chunks`.
+
+**Errors**: `403 FORBIDDEN`, `409 CONFLICT`, `400 VALIDATION_ERROR`.
+
+#### Update a knowledge document (admin)
+
+`PATCH /api/v1/knowledge/:id`
+
+Accepts any subset of `title`, `summary`, `category`, `source`, `status`, `content`. When
+`content` is provided the document is re-chunked and re-indexed. At least one field is required.
+
+#### Delete a knowledge document (admin)
+
+`DELETE /api/v1/knowledge/:id`
+
+**Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
 ### Not found
 
 Any unknown route returns:
@@ -593,7 +711,6 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- Report parsing & OCR (Sprint 4)
 - `POST /api/v1/ai/chat` (Sprint 6)
 - `GET /api/v1/nutrition/plans` (Sprint 7)
 - `GET /api/v1/workouts/plans` (Sprint 8)
