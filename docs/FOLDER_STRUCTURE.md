@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 5)
+## Current Structure (Sprint 6)
 
 ```
 .
@@ -66,6 +66,16 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── knowledge.service.ts         # chunking + RBAC + audit
 │   │   │   │   │   └── chunking/
 │   │   │   │   │       └── text-chunker.ts          # markdown-aware chunker
+│   │   │   │   ├── assistant/         # AI health assistant (Sprint 6)
+│   │   │   │   │   ├── assistant.controller.ts
+│   │   │   │   │   ├── assistant.repository.ts      # Prisma chat sessions/messages
+│   │   │   │   │   ├── assistant.repository.types.ts
+│   │   │   │   │   ├── assistant.routes.ts          # POST /chat + sessions CRUD
+│   │   │   │   │   ├── assistant.service.ts         # RAG orchestration + audit
+│   │   │   │   │   ├── llm/
+│   │   │   │   │   │   └── llm-client.ts            # OpenAI-compatible chat client
+│   │   │   │   │   └── prompt/
+│   │   │   │   │       └── prompt-builder.ts        # system safety rules + <knowledge> context
 │   │   │   │   ├── metrics/           # HealthMetric CRUD
 │   │   │   │   │   ├── metrics.controller.ts
 │   │   │   │   │   ├── metrics.repository.ts
@@ -110,7 +120,8 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │       └── logger.ts          # pino logger
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
-│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge
+│   │   │   ├── assistant.service.spec.ts  # Assistant unit tests (fake LLM + repository)
+│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge + LLM + assistant
 │   │   │   ├── health.spec.ts         # API tests (supertest)
 │   │   │   ├── knowledge-chunker.spec.ts  # Markdown chunker unit tests
 │   │   │   ├── knowledge.service.spec.ts  # Knowledge service unit tests
@@ -119,6 +130,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── report-parser.spec.ts  # Findings parser tests
 │   │   │   ├── reports.service.spec.ts# Reports unit tests (fake storage/processor)
 │   │   │   ├── integration/
+│   │   │   │   ├── assistant.integration.spec.ts # DB-backed chat/session tests
 │   │   │   │   ├── auth.integration.spec.ts    # DB-backed API tests
 │   │   │   │   ├── global-setup.ts            # migrates test DB before run
 │   │   │   │   ├── knowledge.integration.spec.ts # DB-backed knowledge ingest/search tests
@@ -160,6 +172,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── knowledge/
 │       │   │   │   ├── [id]/page.tsx  # Article detail (protected)
 │       │   │   │   └── page.tsx       # Search + browse knowledge base (protected)
+│       │   │   ├── assistant/
+│       │   │   │   └── page.tsx       # AI health assistant chat (protected)
 │       │   │   └── reports/
 │       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
 │       │   │       └── page.tsx       # Report list + upload (protected)
@@ -206,6 +220,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── auth-store.ts      # Zustand persist (accessToken/user)
 │       │   │   ├── auth-store.spec.ts
 │       │   │   ├── constants.ts
+│       │   │   ├── assistant-api.ts   # Typed chat + session list/get/delete endpoints
+│       │   │   ├── assistant-format.ts # Paragraph splitting + 24h time formatting
+│       │   │   ├── assistant-format.spec.ts
 │       │   │   ├── knowledge-api.ts   # Typed knowledge search/list/detail endpoints
 │       │   │   ├── knowledge-format.ts # Category labels + safe <mark> snippet splitter
 │       │   │   ├── knowledge-format.spec.ts
@@ -245,8 +262,10 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/metrics.ts       # HealthMetric, HEALTH_METRIC_META, DashboardOverview
 │       │   ├── types/reports.ts       # MedicalReport, ReportFinding, ReportDetail, labels
 │       │   ├── types/user.ts          # PublicUser, AuthSession
+│       │   ├── types/assistant.ts     # ChatRole, ChatSession, ChatMessage, ChatResponse
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/knowledge.ts # create/update/search/list schemas + inferred types
+│       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
 │       │   ├── validators/reports.ts  # createReportMetadata/updateReport/listReportsQuery schemas
 │       │   └── index.ts

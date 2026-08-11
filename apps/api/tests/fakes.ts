@@ -7,12 +7,24 @@ import type {
   RefreshTokenRecord,
   VerificationTokenRecord,
 } from '../src/modules/auth/auth.repository.types.js';
+import type {
+  AssistantRepository,
+  ChatMessageRecord,
+  ChatSessionRecord,
+} from '../src/modules/assistant/assistant.repository.types.js';
+import type { LlmMessage } from '../src/modules/assistant/llm/llm-client.js';
 
 let seq = 0;
+let nowOffset = 0;
 
 function nextId(prefix: string): string {
   seq += 1;
   return `${prefix}_${seq}`;
+}
+
+function nextDate(): Date {
+  nowOffset += 1;
+  return new Date(Date.now() + nowOffset);
 }
 
 export class FakeAuthRepository implements AuthRepository {
@@ -657,4 +669,130 @@ export class FakeKnowledgeRepository {
     this.auditCalls.push(input);
     return Promise.resolve();
   }
+}
+
+export class FakeLlmClient {
+  calls = 0;
+  prompts: LlmMessage[][] = [];
+  reply = 'This is a fake educational answer from the assistant.';
+  error: Error | null = null;
+
+  async chat(options: { messages: LlmMessage[] }): Promise<string> {
+    this.calls += 1;
+    this.prompts.push(options.messages);
+    if (this.error) throw this.error;
+    return this.reply;
+  }
+}
+
+export class FakeAssistantRepository {
+  sessions = new Map<string, ChatSessionRecord>();
+  messages = new Map<string, ChatMessageRecord>();
+  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
+
+  async createSession(input: { userId: string; title: string }): Promise<ChatSessionRecord> {
+    const now = nextDate();
+    const session: ChatSessionRecord = {
+      id: nextId('cs'),
+      userId: input.userId,
+      title: input.title,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.sessions.set(session.id, session);
+    return session;
+  }
+
+  async findSessionById(id: string): Promise<ChatSessionRecord | null> {
+    return this.sessions.get(id) ?? null;
+  }
+
+  async listSessionsByUser(userId: string, filter: { page: number; limit: number }) {
+    const items = [...this.sessions.values()]
+      .filter((session) => session.userId === userId)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const start = (filter.page - 1) * filter.limit;
+    const page = items.slice(start, start + filter.limit).map((session) => {
+      const sessionMessages = [...this.messages.values()].filter(
+        (message) => message.sessionId === session.id,
+      );
+      return {
+        ...session,
+        messageCount: sessionMessages.length,
+        lastMessageAt: sessionMessages[sessionMessages.length - 1]?.createdAt ?? null,
+      };
+    });
+    return { items: page, total: items.length };
+  }
+
+  async touchSession(id: string): Promise<void> {
+    const session = this.sessions.get(id);
+    if (!session) throw new Error(`session ${id} not found`);
+    session.updatedAt = nextDate();
+  }
+
+  async createMessage(input: {
+    sessionId: string;
+    role: 'USER' | 'ASSISTANT';
+    content: string;
+    sources?: unknown;
+    isError?: boolean;
+  }): Promise<ChatMessageRecord> {
+    const message: ChatMessageRecord = {
+      id: nextId('cm'),
+      sessionId: input.sessionId,
+      role: input.role,
+      content: input.content,
+      sources: (input.sources ?? null) as ChatMessageRecord['sources'],
+      isError: input.isError ?? false,
+      createdAt: nextDate(),
+    };
+    this.messages.set(message.id, message);
+    return message;
+  }
+
+  async listMessagesBySession(sessionId: string, limit: number): Promise<ChatMessageRecord[]> {
+    return [...this.messages.values()]
+      .filter((message) => message.sessionId === sessionId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .slice(-limit);
+  }
+
+  async listAllMessagesBySession(sessionId: string): Promise<ChatMessageRecord[]> {
+    return [...this.messages.values()]
+      .filter((message) => message.sessionId === sessionId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    this.sessions.delete(id);
+    for (const [key, message] of this.messages.entries()) {
+      if (message.sessionId === id) {
+        this.messages.delete(key);
+      }
+    }
+  }
+
+  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+    this.auditCalls.push(input);
+    return Promise.resolve();
+  }
+}
+
+export function makeKnowledgeSearchResult(
+  partial: Partial<KnowledgeSearchResult> = {},
+): KnowledgeSearchResult {
+  return {
+    chunkId: partial.chunkId ?? nextId('chk'),
+    documentId: partial.documentId ?? nextId('kdoc'),
+    slug: partial.slug ?? 'fake-article',
+    documentTitle: partial.documentTitle ?? 'Fake Article',
+    category: partial.category ?? 'WELLNESS',
+    source: partial.source ?? null,
+    chunkIndex: partial.chunkIndex ?? 0,
+    title: partial.title ?? null,
+    snippet: partial.snippet ?? 'A snippet of the retrieved article.',
+    content: partial.content ?? 'Full content of the retrieved article.',
+    score: partial.score ?? 1,
+  };
 }

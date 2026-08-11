@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 5)
+## Current Endpoints (Sprint 6)
 
 ### Health check
 
@@ -678,6 +678,118 @@ Accepts any subset of `title`, `summary`, `category`, `source`, `status`, `conte
 
 **Response 200**: `{ "success": true, "data": { "deleted": true } }`
 
+### AI health assistant
+
+All endpoints require `Authorization: Bearer <accessToken>`. The assistant is an educational
+wellness chatbot grounded in the knowledge base: each turn retrieves relevant published chunks,
+sends them together with recent conversation history to an OpenAI-compatible model, and persists
+the exchange. Every response carries the `MEDICAL_DISCLAIMER` and retrieval sources. When no LLM
+key is configured (`USER_LLM_API_KEY`), the assistant replies with an educational "not configured"
+notice instead of failing.
+
+#### Send a chat message
+
+`POST /api/v1/assistant/chat`
+
+| Field       | Type    | Required | Notes                                            |
+| ----------- | ------- | -------- | ------------------------------------------------ |
+| `message`   | string  | yes      | User message (1–4000 chars)                      |
+| `sessionId` | string  | no       | Omit to start a new conversation                 |
+
+Sessions are owned by the authenticated user; a `sessionId` that does not belong to the caller
+returns `404`. Chat is rate-limited per user (default 30 messages/minute).
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "session": {
+      "id": "clz...",
+      "title": "What is a normal fasting glucose?",
+      "createdAt": "2026-08-11T12:00:00.000Z",
+      "updatedAt": "2026-08-11T12:00:05.000Z",
+      "messages": [
+        {
+          "id": "clz...",
+          "sessionId": "clz...",
+          "role": "USER",
+          "content": "What is a normal fasting glucose?",
+          "sources": null,
+          "isError": false,
+          "createdAt": "2026-08-11T12:00:00.000Z"
+        },
+        {
+          "id": "clz...",
+          "sessionId": "clz...",
+          "role": "ASSISTANT",
+          "content": "A normal fasting glucose is below 100 mg/dL ...",
+          "sources": [
+            {
+              "documentId": "clz...",
+              "documentTitle": "Glucose Monitoring Guide",
+              "slug": "glucose-monitoring-guide",
+              "category": "LABS",
+              "chunkIndex": 0,
+              "title": "Fasting glucose",
+              "snippet": "A normal fasting glucose is below 100 mg/dL."
+            }
+          ],
+          "isError": false,
+          "createdAt": "2026-08-11T12:00:04.000Z"
+        }
+      ]
+    },
+    "providerConfigured": true,
+    "disclaimer": "This information is intended for educational purposes only ..."
+  }
+}
+```
+
+#### List conversations
+
+`GET /api/v1/assistant/sessions?page=1&limit=20`
+
+| Query   | Type | Default | Notes          |
+| ------- | ---- | ------- | -------------- |
+| `page`  | int  | 1       | Page number    |
+| `limit` | int  | 20      | Items per page (1–100) |
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "clz...",
+        "title": "What is a normal fasting glucose?",
+        "messageCount": 2,
+        "lastMessageAt": "2026-08-11T12:00:04.000Z",
+        "createdAt": "2026-08-11T12:00:00.000Z",
+        "updatedAt": "2026-08-11T12:00:05.000Z"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 1, "totalPages": 1 }
+  }
+}
+```
+
+#### Get a conversation
+
+`GET /api/v1/assistant/sessions/:id`
+
+Returns the session detail object (the same shape as the `session` in the chat response) with all
+messages in chronological order. Sessions owned by other users return `404`.
+
+#### Delete a conversation
+
+`DELETE /api/v1/assistant/sessions/:id`
+
+**Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
 ### Not found
 
 Any unknown route returns:
@@ -711,7 +823,6 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- `POST /api/v1/ai/chat` (Sprint 6)
 - `GET /api/v1/nutrition/plans` (Sprint 7)
 - `GET /api/v1/workouts/plans` (Sprint 8)
 - Medication, voice, analytics, doctor, admin modules (Sprints 9-13)

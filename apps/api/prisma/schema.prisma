@@ -60,6 +60,11 @@ enum KnowledgeStatus {
   PUBLISHED
 }
 
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -82,6 +87,7 @@ model User {
   healthMetrics           HealthMetric[]
   reports                 MedicalReport[]
   knowledgeDocuments      KnowledgeDocument[]
+  chatSessions            ChatSession[]
 
   @@index([oauthProvider, oauthId])
 }
@@ -179,6 +185,35 @@ model KnowledgeChunk {
 
   @@index([documentId, chunkIndex])
   @@index([searchVector], type: Gin)
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      ChatRole
+  content   String
+  // Retrieval provenance: the knowledge chunks (and their documents) that
+  // grounded the assistant answer. Null when no sources were used.
+  sources   Json?
+  // True when the assistant reply is a fallback/error notice (e.g. the LLM
+  // provider is not configured or the upstream call failed).
+  isError   Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  @@index([sessionId, createdAt])
 }
 
 model RefreshToken {

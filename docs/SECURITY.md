@@ -139,20 +139,51 @@ accepted with rationale.
   embedding column behind the same repository interface; any embedding keys are user-provided
   (`USER_LLM_*`), never read from the platform environment.
 
+## AI Assistant Threat Model (Sprint 6)
+
+- **User-supplied credentials, never platform keys**: the assistant is configured exclusively
+  through `USER_LLM_API_KEY` / `USER_LLM_BASE_URL` / `USER_LLM_MODEL` from the deployment
+  operator. LongevIQ never reads, forwards, or persists platform environment credentials; when no
+  key is configured the assistant degrades gracefully (educational notice) instead of leaking
+  configuration internals.
+- **Tenant isolation**: chat sessions are scoped to the owning user; reading, deleting, or
+  appending to another user's session returns `404 NOT_FOUND`, matching the resource-enumeration
+  resistance used across the platform.
+- **Prompt-injection hardening**: retrieved knowledge text is isolated inside `<knowledge>`
+  delimiters and the system prompt instructs the model to treat it as reference material, never
+  as instructions. Model output is treated as untrusted: it is rendered with React
+  (`whitespace-pre-wrap`, no `innerHTML`), so an injected directive cannot escalate to XSS.
+- **Bounded cost**: chat is behind a dedicated per-user rate limit
+  (`ASSISTANT_CHAT_RATE_LIMIT_MAX`, default 30/min) on top of the global per-IP limiter;
+  upstream calls time out via `LLM_TIMEOUT_MS`; message length is capped at 4,000 characters by
+  the shared zod validator; retrieval (`ASSISTANT_RETRIEVAL_TOP_K`) and prompt context
+  (`ASSISTANT_CONTEXT_CHAR_LIMIT`, `ASSISTANT_HISTORY_MESSAGES`) are bounded so token usage per
+  request cannot balloon.
+- **Disclaimer enforced at the AI layer**: the safety rules are part of the system prompt (never
+  diagnose, never prescribe, never replace a clinician, flag emergencies) and the
+  `MEDICAL_DISCLAIMER` is appended to every assistant response by the service itself, so it is
+  present even if the model omits it.
+- **No secrets in audit or logs**: `DATA.ASSISTANT_CHAT` records actor, session, provider
+  availability, and source count — never the user message or the model reply. The LLM API key is
+  sent only in the server-side upstream request header and is not logged (pino redaction covers
+  `authorization`).
+- **No PHI egress**: only the current question, bounded conversation history, and retrieved
+  knowledge chunks are sent to the configured provider; medical report contents are never fed to
+  the assistant in this Sprint.
+
 ## Upcoming Controls (per Sprint)
 
-- **Sprint 6**: prompt-injection hardening, output filtering, disclaimers enforced at the AI
-  layer; optional malware-scan hook for uploaded files.
+- **Sprint 7**: semantic retrieval with pgvector; embedding keys remain user-supplied.
 - **Sprint 9**: time-based one-time tokens for medication reminders.
 - **Sprint 13**: admin audit log reader, role escalation guardrails.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.
 
 ## Audit Logging
 
-Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics) and Sprint 3
-(reports). Design principles: append-only by policy (no update/delete flows expose it), event
+Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics), Sprint 3
+(reports), and Sprint 6 (assistant chats). Design principles: append-only by policy (no update/delete flows expose it), event
 classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
-no sensitive payloads (passwords/tokens/metric/report data are never written).
+no sensitive payloads (passwords/tokens/metric/report/chat data are never written).
 
 ## Dependency Notes
 

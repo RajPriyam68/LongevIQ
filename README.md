@@ -222,6 +222,30 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   renders the article as titled sections; the site header links to Knowledge for signed-in users.
 - **Tests**: 103 API tests (unit + DB-backed integration) and 35 web tests.
 
+### Sprint 6 — AI Health Assistant (RAG Chat)
+
+- **Chat API**: under `/api/v1/assistant` — `POST /chat` (new or continuing a session), `GET
+  /sessions` (paginated list), `GET /sessions/:id`, `DELETE /sessions/:id`. Sessions are
+  owner-scoped; cross-user access returns `404`.
+- **RAG grounding**: each turn retrieves the top-K published knowledge chunks (PostgreSQL FTS via
+  the Sprint 5 repository), caps the context (`ASSISTANT_CONTEXT_CHAR_LIMIT`), and sends the
+  system safety rules + bounded history + retrieved context to an OpenAI-compatible chat model.
+  Retrieved sources are persisted and surfaced in the UI with links into `/knowledge/[id]`.
+- **Graceful degradation**: LLM credentials are user-supplied at runtime
+  (`USER_LLM_API_KEY` / `USER_LLM_BASE_URL` / `USER_LLM_MODEL`). With no key configured the
+  assistant replies with an educational "not configured" notice and still stores the exchange;
+  upstream errors become `isError` assistant messages, never a 500.
+- **Data model**: `ChatSession` + `ChatMessage` (role, JSONB `sources`, `isError`) — migration
+  `20260811155835_add_ai_assistant`.
+- **Safety**: per-user chat rate limit (default 30/min), 4,000-char message cap, provider timeouts,
+  medical disclaimer appended by the service itself, model output rendered as plain text (no
+  `innerHTML`), and audit events `DATA.ASSISTANT_CHAT` / `DATA.ASSISTANT_SESSION_DELETE` with no
+  message content logged.
+- **Frontend**: protected `/assistant` page with session sidebar, new-chat, suggestion chips,
+  typing indicator, sources accordion, and a medical disclaimer footer; the site header links to
+  Assistant for signed-in users.
+- **Tests**: 134 API tests (unit + DB-backed integration) and 41 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -234,7 +258,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 3      | Medical report upload & management **(done)**               |
 | 4      | OCR + medical report parsing **(done)**                    |
 | 5      | Medical knowledge base (RAG) **(done)**                    |
-| 6      | AI health assistant                                          |
+| 6      | AI health assistant **(done)**                              |
 | 7      | Nutrition planner                                            |
 | 8      | Workout planner                                              |
 | 9      | Medication reminder                                          |

@@ -40,6 +40,15 @@ missing required variables cause the process to **fail fast**.
 | `OCR_MAX_PAGES`          | no       | `10` (max 50)          | Max PDF pages rendered/OCR'd per report               |
 | `OCR_SCALE`              | no       | `2` (max 4)            | Render scale for OCR (higher = sharper, slower)      |
 | `OCR_MAX_IMAGE_DIMENSION`| no       | `3000`                 | Max pixel dimension for OCR'd images (larger ones are downscaled) |
+| `USER_LLM_API_KEY`       | no       | *(empty)*              | OpenAI-compatible API key for the AI health assistant (user-supplied; empty disables AI chat gracefully) |
+| `USER_LLM_BASE_URL`      | no       | `https://api.openai.com/v1` | Base URL of the OpenAI-compatible chat-completions API       |
+| `USER_LLM_MODEL`         | no       | `gpt-4o-mini`          | Model name used for assistant completions                    |
+| `LLM_TIMEOUT_MS`         | no       | `60000`                | Upstream LLM request timeout (ms)                             |
+| `ASSISTANT_RETRIEVAL_TOP_K` | no    | `4`                    | Knowledge chunks injected into each assistant prompt          |
+| `ASSISTANT_CONTEXT_CHAR_LIMIT` | no  | `12000`                | Max chars of retrieved context per prompt                     |
+| `ASSISTANT_HISTORY_MESSAGES` | no    | `12`                   | Recent conversation messages sent with each turn              |
+| `ASSISTANT_CHAT_RATE_LIMIT_WINDOW_MS` | no | `60000`           | Per-user chat rate-limit window (ms)                          |
+| `ASSISTANT_CHAT_RATE_LIMIT_MAX` | no    | `30`                   | Max chat messages per window per user                         |
 
 > **Development email fallback.** When `SMTP_HOST` is unset, verification emails are logged to the
 > server console and the verification link is returned in the API response. This only happens when
@@ -56,17 +65,19 @@ missing required variables cause the process to **fail fast**.
 > driven by user-provided keys (`USER_LLM_API_KEY` / `USER_LLM_BASE_URL` / `USER_LLM_MODEL`),
 > never by platform environment credentials.
 
+> **AI assistant (Sprint 6).** The assistant calls an OpenAI-compatible `POST /chat/completions`
+> endpoint with the `USER_LLM_*` credentials. All credential values are **user-supplied at
+> runtime** — LongevIQ never reads or injects platform environment keys. Leaving `USER_LLM_API_KEY`
+> empty keeps the assistant in a graceful "not configured" mode that still stores the exchange.
+
 ### Placeholders for upcoming Sprints
 
 These are documented now for planning; they are consumed by later Sprints:
 
-| Variable               | Sprint | Purpose                        |
-| ---------------------- | ------ | ------------------------------ |
-| `USER_LLM_API_KEY`     | 6      | LLM provider key (user-supplied)|
-| `USER_LLM_BASE_URL`    | 6      | LLM base URL (user-supplied)    |
-| `USER_LLM_MODEL`       | 6      | LLM model name                 |
-| `OPENAI_EMBEDDING_MODEL`| 6     | Semantic-layer embedding model |
-| `REDIS_URL`            | 9/14   | Queues / notifications         |
+| Variable                | Sprint | Purpose                        |
+| ----------------------- | ------ | ------------------------------ |
+| `OPENAI_EMBEDDING_MODEL`| 7      | Semantic-layer embedding model |
+| `REDIS_URL`             | 9/14   | Queues / notifications         |
 
 ## Web (`apps/web/.env`)
 

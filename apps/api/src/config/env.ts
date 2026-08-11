@@ -66,6 +66,20 @@ const envSchema = z.object({
   OCR_MAX_PAGES: z.coerce.number().int().positive().max(50).default(10),
   OCR_SCALE: z.coerce.number().positive().max(4).default(2),
   OCR_MAX_IMAGE_DIMENSION: z.coerce.number().int().positive().default(3000),
+
+  // Sprint 6: AI health assistant. Credentials are supplied by the deployment
+  // operator at runtime (see apps/api/.env.example); the platform never injects
+  // its own keys. Leave USER_LLM_API_KEY blank to disable AI chat gracefully.
+  USER_LLM_API_KEY: z.string().min(1).optional(),
+  USER_LLM_BASE_URL: z.string().url().default('https://api.openai.com/v1'),
+  USER_LLM_MODEL: z.string().min(1).default('gpt-4o-mini'),
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  // Retrieval-to-prompt knobs for the RAG chat assistant.
+  ASSISTANT_RETRIEVAL_TOP_K: z.coerce.number().int().min(1).max(20).default(4),
+  ASSISTANT_CONTEXT_CHAR_LIMIT: z.coerce.number().int().min(1000).max(100_000).default(12_000),
+  ASSISTANT_HISTORY_MESSAGES: z.coerce.number().int().min(1).max(50).default(12),
+  ASSISTANT_CHAT_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  ASSISTANT_CHAT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -24,6 +24,10 @@ import type { ReportProcessor } from './modules/reports/processing/report-proces
 import { PrismaKnowledgeRepository } from './modules/knowledge/knowledge.repository.js';
 import { KnowledgeService } from './modules/knowledge/knowledge.service.js';
 import type { KnowledgeRepository } from './modules/knowledge/knowledge.repository.types.js';
+import { OpenAiCompatibleLlmClient, type LlmClient } from './modules/assistant/llm/llm-client.js';
+import { PrismaAssistantRepository } from './modules/assistant/assistant.repository.js';
+import { AssistantService } from './modules/assistant/assistant.service.js';
+import type { AssistantRepository } from './modules/assistant/assistant.repository.types.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -41,6 +45,9 @@ export interface Container {
   reportsService: ReportsService;
   knowledgeRepository: KnowledgeRepository;
   knowledgeService: KnowledgeService;
+  llmClient: LlmClient;
+  assistantRepository: AssistantRepository;
+  assistantService: AssistantService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -91,6 +98,29 @@ export function createContainer(overrides?: Partial<Container>): Container {
   const knowledgeService =
     overrides?.knowledgeService ?? new KnowledgeService(knowledgeRepository, auditSink);
 
+  const llmClient =
+    overrides?.llmClient ??
+    new OpenAiCompatibleLlmClient({
+      apiKey: env.USER_LLM_API_KEY,
+      baseUrl: env.USER_LLM_BASE_URL,
+      model: env.USER_LLM_MODEL,
+      timeoutMs: env.LLM_TIMEOUT_MS,
+    });
+  const assistantRepository = overrides?.assistantRepository ?? new PrismaAssistantRepository();
+  const assistantService =
+    overrides?.assistantService ??
+    new AssistantService(
+      assistantRepository,
+      knowledgeRepository,
+      llmClient,
+      {
+        retrievalTopK: env.ASSISTANT_RETRIEVAL_TOP_K,
+        contextCharLimit: env.ASSISTANT_CONTEXT_CHAR_LIMIT,
+        historyMessages: env.ASSISTANT_HISTORY_MESSAGES,
+      },
+      auditSink,
+    );
+
   return {
     authRepository,
     tokenService,
@@ -107,5 +137,8 @@ export function createContainer(overrides?: Partial<Container>): Container {
     reportsService,
     knowledgeRepository,
     knowledgeService,
+    llmClient,
+    assistantRepository,
+    assistantService,
   };
 }
