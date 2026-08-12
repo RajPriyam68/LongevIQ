@@ -28,6 +28,9 @@ import { OpenAiCompatibleLlmClient, type LlmClient } from './modules/assistant/l
 import { PrismaAssistantRepository } from './modules/assistant/assistant.repository.js';
 import { AssistantService } from './modules/assistant/assistant.service.js';
 import type { AssistantRepository } from './modules/assistant/assistant.repository.types.js';
+import { PrismaNutritionRepository } from './modules/nutrition/nutrition.repository.js';
+import { NutritionService } from './modules/nutrition/nutrition.service.js';
+import type { NutritionRepository } from './modules/nutrition/nutrition.repository.types.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -48,6 +51,8 @@ export interface Container {
   llmClient: LlmClient;
   assistantRepository: AssistantRepository;
   assistantService: AssistantService;
+  nutritionRepository: NutritionRepository;
+  nutritionService: NutritionService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -121,6 +126,10 @@ export function createContainer(overrides?: Partial<Container>): Container {
       auditSink,
     );
 
+  const nutritionRepository = overrides?.nutritionRepository ?? new PrismaNutritionRepository();
+  const nutritionService =
+    overrides?.nutritionService ?? new NutritionService(nutritionRepository, auditSink);
+
   return {
     authRepository,
     tokenService,
@@ -140,5 +149,7 @@ export function createContainer(overrides?: Partial<Container>): Container {
     llmClient,
     assistantRepository,
     assistantService,
+    nutritionRepository,
+    nutritionService,
   };
 }

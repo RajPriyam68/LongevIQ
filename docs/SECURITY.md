@@ -171,9 +171,28 @@ accepted with rationale.
   knowledge chunks are sent to the configured provider; medical report contents are never fed to
   the assistant in this Sprint.
 
+## Nutrition Planner Threat Model (Sprint 7)
+
+- **No LLM, no PHI egress**: plan generation is deterministic server-side math over the request
+  payload (BMR/TDEE, macro split, meal scaling). No body metrics are ever sent to a third-party
+  provider and no embeddings/vectors are produced, so there is no new external surface.
+- **Minimal retention by design**: the profile is stored only as an immutable snapshot on the plan
+  it generated (`NutritionPlan`), never as a standing user profile that could drift or be reused
+  for unintended features. Deleting a plan deletes its snapshot and meals via `onDelete: Cascade`.
+- **Input bounds**: zod validates the profile (`age` 18–100, `weightKg` 1–300, `heightCm` 100–250,
+  at most 5 dietary preferences) before any computation; the weight-loss calorie target is clamped
+  at a 1,200 kcal floor so the generator cannot recommend a starvation diet.
+- **Tenant isolation**: plans are owner-scoped; reading or deleting another user's plan returns
+  `404 NOT_FOUND` (resource-enumeration resistance, as elsewhere in the platform).
+- **Abuse resistance**: generation is cheap (no rate-limited upstream dependency), so the global
+  per-IP limiter is sufficient; catalog size and slot counts bound the response size.
+- **No secrets in audit or logs**: `DATA.NUTRITION_PLAN_CREATE` / `DATA.NUTRITION_PLAN_DELETE`
+  record actor, plan id, goal, and calorie target — never age, weight, height, sex, or meal data.
+  Plan generation is educational and the UI shows the standard disclaimer next to every plan.
+
 ## Upcoming Controls (per Sprint)
 
-- **Sprint 7**: semantic retrieval with pgvector; embedding keys remain user-supplied.
+- **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied.
 - **Sprint 9**: time-based one-time tokens for medication reminders.
 - **Sprint 13**: admin audit log reader, role escalation guardrails.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.
@@ -181,9 +200,9 @@ accepted with rationale.
 ## Audit Logging
 
 Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics), Sprint 3
-(reports), and Sprint 6 (assistant chats). Design principles: append-only by policy (no update/delete flows expose it), event
+(reports), Sprint 6 (assistant chats), and Sprint 7 (nutrition plans). Design principles: append-only by policy (no update/delete flows expose it), event
 classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
-no sensitive payloads (passwords/tokens/metric/report/chat data are never written).
+no sensitive payloads (passwords/tokens/metric/report/chat/nutrition data are never written).
 
 ## Dependency Notes
 

@@ -65,6 +65,42 @@ enum ChatRole {
   ASSISTANT
 }
 
+enum NutritionGoal {
+  LOSE_WEIGHT
+  MAINTAIN_WEIGHT
+  GAIN_MUSCLE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum DietaryPreference {
+  STANDARD
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  DAIRY_FREE
+  LOW_SODIUM
+  MEDITERRANEAN
+}
+
+enum BiologicalSex {
+  MALE
+  FEMALE
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -88,6 +124,7 @@ model User {
   reports                 MedicalReport[]
   knowledgeDocuments      KnowledgeDocument[]
   chatSessions            ChatSession[]
+  nutritionPlans          NutritionPlan[]
 
   @@index([oauthProvider, oauthId])
 }
@@ -214,6 +251,50 @@ model ChatMessage {
   createdAt DateTime   @default(now())
 
   @@index([sessionId, createdAt])
+}
+
+model NutritionPlan {
+  id                 String             @id @default(cuid())
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal               NutritionGoal
+  activityLevel      ActivityLevel
+  age                Int
+  sex                BiologicalSex
+  weightKg           Float
+  heightCm           Float
+  // Dietary preferences used when composing the plan ('' = none selected).
+  dietaryPreferences String[]
+  bmrCalories        Int
+  tdeeCalories       Int
+  targetCalories     Int
+  proteinGrams       Int
+  fatGrams           Int
+  carbsGrams         Int
+  waterLitres        Float
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  meals NutritionMeal[]
+
+  @@index([userId, createdAt])
+}
+
+model NutritionMeal {
+  id           String        @id @default(cuid())
+  planId       String
+  plan         NutritionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  mealType     MealType
+  name         String
+  description  String?
+  calories     Int
+  proteinGrams Int
+  fatGrams     Int
+  carbsGrams   Int
+  sortOrder    Int           @default(0)
+  createdAt    DateTime      @default(now())
+
+  @@index([planId, sortOrder])
 }
 
 model RefreshToken {

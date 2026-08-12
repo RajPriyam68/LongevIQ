@@ -796,3 +796,159 @@ export function makeKnowledgeSearchResult(
     score: partial.score ?? 1,
   };
 }
+
+export interface NutritionMealLike {
+  id: string;
+  mealType: string;
+  name: string;
+  description: string | null;
+  calories: number;
+  proteinGrams: number;
+  fatGrams: number;
+  carbsGrams: number;
+  sortOrder: number;
+}
+
+export interface NutritionPlanLike {
+  id: string;
+  userId: string;
+  goal: string;
+  activityLevel: string;
+  age: number;
+  sex: string;
+  weightKg: number;
+  heightCm: number;
+  dietaryPreferences: string[];
+  bmrCalories: number;
+  tdeeCalories: number;
+  targetCalories: number;
+  proteinGrams: number;
+  fatGrams: number;
+  carbsGrams: number;
+  waterLitres: number;
+  createdAt: Date;
+  updatedAt: Date;
+  meals: NutritionMealLike[];
+}
+
+export class FakeNutritionRepository {
+  plans = new Map<string, NutritionPlanLike>();
+  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
+
+  async createPlan(input: {
+    userId: string;
+    goal: string;
+    activityLevel: string;
+    age: number;
+    sex: string;
+    weightKg: number;
+    heightCm: number;
+    dietaryPreferences: string[];
+    bmrCalories: number;
+    tdeeCalories: number;
+    targetCalories: number;
+    proteinGrams: number;
+    fatGrams: number;
+    carbsGrams: number;
+    waterLitres: number;
+    meals: Array<Omit<NutritionMealLike, 'id' | 'createdAt'>>;
+  }) {
+    const now = new Date();
+    const plan: NutritionPlanLike = {
+      id: nextId('npl'),
+      userId: input.userId,
+      goal: input.goal,
+      activityLevel: input.activityLevel,
+      age: input.age,
+      sex: input.sex,
+      weightKg: input.weightKg,
+      heightCm: input.heightCm,
+      dietaryPreferences: input.dietaryPreferences,
+      bmrCalories: input.bmrCalories,
+      tdeeCalories: input.tdeeCalories,
+      targetCalories: input.targetCalories,
+      proteinGrams: input.proteinGrams,
+      fatGrams: input.fatGrams,
+      carbsGrams: input.carbsGrams,
+      waterLitres: input.waterLitres,
+      createdAt: now,
+      updatedAt: now,
+      meals: input.meals.map((meal, index) => ({
+        id: nextId('nml'),
+        mealType: meal.mealType,
+        name: meal.name,
+        description: meal.description ?? null,
+        calories: meal.calories,
+        proteinGrams: meal.proteinGrams,
+        fatGrams: meal.fatGrams,
+        carbsGrams: meal.carbsGrams,
+        sortOrder: meal.sortOrder ?? index,
+      })),
+    };
+    this.plans.set(plan.id, plan);
+    return plan;
+  }
+
+  async findPlanById(id: string) {
+    return this.plans.get(id) ?? null;
+  }
+
+  async listPlansByUser(userId: string, filter: { page: number; limit: number }) {
+    const items = [...this.plans.values()]
+      .filter((plan) => plan.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const start = (filter.page - 1) * filter.limit;
+    return {
+      items: items
+        .slice(start, start + filter.limit)
+        .map((plan) => ({ ...plan, mealCount: plan.meals.length })),
+      total: items.length,
+    };
+  }
+
+  async deletePlan(id: string) {
+    this.plans.delete(id);
+  }
+
+  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+    this.auditCalls.push(input);
+    return Promise.resolve();
+  }
+}
+
+export function makeNutritionPlan(partial: Partial<NutritionPlanLike> = {}): NutritionPlanLike {
+  const now = new Date();
+  return {
+    id: partial.id ?? nextId('npl'),
+    userId: partial.userId ?? 'usr_user',
+    goal: partial.goal ?? 'MAINTAIN_WEIGHT',
+    activityLevel: partial.activityLevel ?? 'MODERATE',
+    age: partial.age ?? 32,
+    sex: partial.sex ?? 'FEMALE',
+    weightKg: partial.weightKg ?? 65,
+    heightCm: partial.heightCm ?? 168,
+    dietaryPreferences: partial.dietaryPreferences ?? [],
+    bmrCalories: partial.bmrCalories ?? 1400,
+    tdeeCalories: partial.tdeeCalories ?? 2170,
+    targetCalories: partial.targetCalories ?? 2170,
+    proteinGrams: partial.proteinGrams ?? 78,
+    fatGrams: partial.fatGrams ?? 60,
+    carbsGrams: partial.carbsGrams ?? 300,
+    waterLitres: partial.waterLitres ?? 2.3,
+    createdAt: partial.createdAt ?? now,
+    updatedAt: partial.updatedAt ?? now,
+    meals: partial.meals ?? [
+      {
+        id: nextId('nml'),
+        mealType: 'BREAKFAST',
+        name: 'Oatmeal with berries and nuts',
+        description: null,
+        calories: 540,
+        proteinGrams: 19,
+        fatGrams: 15,
+        carbsGrams: 80,
+        sortOrder: 0,
+      },
+    ],
+  };
+}

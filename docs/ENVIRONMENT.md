@@ -76,7 +76,7 @@ These are documented now for planning; they are consumed by later Sprints:
 
 | Variable                | Sprint | Purpose                        |
 | ----------------------- | ------ | ------------------------------ |
-| `OPENAI_EMBEDDING_MODEL`| 7      | Semantic-layer embedding model |
+| `OPENAI_EMBEDDING_MODEL`| later  | Semantic-layer embedding model (pgvector) |
 | `REDIS_URL`             | 9/14   | Queues / notifications         |
 
 ## Web (`apps/web/.env`)

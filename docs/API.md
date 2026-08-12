@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 6)
+## Current Endpoints (Sprint 7)
 
 ### Health check
 
@@ -790,6 +790,128 @@ messages in chronological order. Sessions owned by other users return `404`.
 
 **Response 200**: `{ "success": true, "data": { "deleted": true } }`
 
+### Nutrition planner
+
+All endpoints require `Authorization: Bearer <accessToken>`. The planner is deterministic
+server-side math: a profile (age, sex, weight, height, goal, activity level, dietary preferences)
+is converted into BMR/TDEE, a goal-adjusted calorie target, macro and hydration targets, and a
+four-meal day scaled from a curated, educationally grounded meal catalog. Plans are immutable
+snapshots owned by the user; cross-user access returns `404`.
+
+#### Build a nutrition plan
+
+`POST /api/v1/nutrition/plans`
+
+| Field                  | Type         | Required | Notes                                                        |
+| ---------------------- | ------------ | -------- | ------------------------------------------------------------ |
+| `age`                  | int          | yes      | 18–100                                                       |
+| `sex`                  | enum         | yes      | `MALE`, `FEMALE`                                             |
+| `weightKg`             | number       | yes      | 1–300                                                        |
+| `heightCm`             | int          | yes      | 100–250                                                      |
+| `goal`                 | enum         | yes      | `LOSE_WEIGHT`, `MAINTAIN_WEIGHT`, `GAIN_MUSCLE`              |
+| `activityLevel`        | enum         | yes      | `SEDENTARY`, `LIGHT`, `MODERATE`, `ACTIVE`, `VERY_ACTIVE`    |
+| `dietaryPreferences`   | enum[]       | no       | `STANDARD`, `VEGETARIAN`, `VEGAN`, `GLUTEN_FREE`, `DAIRY_FREE`, `LOW_SODIUM`, `MEDITERRANEAN` (max 5) |
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "plan": {
+      "id": "clz...",
+      "goal": "MAINTAIN_WEIGHT",
+      "activityLevel": "MODERATE",
+      "age": 32,
+      "sex": "FEMALE",
+      "weightKg": 65,
+      "heightCm": 168,
+      "dietaryPreferences": ["VEGETARIAN"],
+      "bmrCalories": 1404,
+      "tdeeCalories": 2176,
+      "targetCalories": 2176,
+      "proteinGrams": 78,
+      "fatGrams": 60,
+      "carbsGrams": 308,
+      "waterLitres": 2.3,
+      "createdAt": "2026-08-12T12:00:00.000Z",
+      "updatedAt": "2026-08-12T12:00:00.000Z",
+      "meals": [
+        {
+          "id": "clz...",
+          "mealType": "BREAKFAST",
+          "name": "Greek yogurt parfait",
+          "description": "Plain Greek yogurt layered with granola-free oats, berries, and honey.",
+          "calories": 544,
+          "proteinGrams": 37,
+          "fatGrams": 15,
+          "carbsGrams": 65,
+          "sortOrder": 0
+        }
+      ]
+    }
+  }
+}
+```
+
+Each plan stores one meal per slot (`BREAKFAST`, `LUNCH`, `DINNER`, `SNACK`), scaled to its share
+of the calorie target. Weight-loss targets are clamped at a 1,200 kcal floor.
+
+#### List plans
+
+`GET /api/v1/nutrition/plans?page=1&limit=20`
+
+| Query   | Type | Default | Notes          |
+| ------- | ---- | ------- | -------------- |
+| `page`  | int  | 1       | Page number    |
+| `limit` | int  | 20      | Items per page (1–100) |
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "clz...",
+        "goal": "MAINTAIN_WEIGHT",
+        "activityLevel": "MODERATE",
+        "age": 32,
+        "sex": "FEMALE",
+        "weightKg": 65,
+        "heightCm": 168,
+        "dietaryPreferences": ["VEGETARIAN"],
+        "bmrCalories": 1404,
+        "tdeeCalories": 2176,
+        "targetCalories": 2176,
+        "proteinGrams": 78,
+        "fatGrams": 60,
+        "carbsGrams": 308,
+        "waterLitres": 2.3,
+        "createdAt": "2026-08-12T12:00:00.000Z",
+        "updatedAt": "2026-08-12T12:00:00.000Z",
+        "mealCount": 4
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 1, "totalPages": 1 }
+  }
+}
+```
+
+#### Get a plan
+
+`GET /api/v1/nutrition/plans/:id`
+
+Returns the full plan object (the same shape as the `plan` in the create response) including its
+meals. Plans owned by other users return `404`.
+
+#### Delete a plan
+
+`DELETE /api/v1/nutrition/plans/:id`
+
+**Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
 ### Not found
 
 Any unknown route returns:
@@ -823,7 +945,6 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- `GET /api/v1/nutrition/plans` (Sprint 7)
 - `GET /api/v1/workouts/plans` (Sprint 8)
 - Medication, voice, analytics, doctor, admin modules (Sprints 9-13)
 

@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 6)
+## Current Structure (Sprint 7)
 
 ```
 .
@@ -82,6 +82,16 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── metrics.repository.types.ts
 │   │   │   │   │   ├── metrics.routes.ts
 │   │   │   │   │   └── metrics.service.ts
+│   │   │   │   ├── nutrition/         # Nutrition planner (Sprint 7)
+│   │   │   │   │   ├── nutrition.controller.ts
+│   │   │   │   │   ├── nutrition.repository.ts      # Prisma plans + meals
+│   │   │   │   │   ├── nutrition.repository.types.ts
+│   │   │   │   │   ├── nutrition.routes.ts          # POST/GET/DELETE /plans
+│   │   │   │   │   ├── nutrition.service.ts         # target math + composition
+│   │   │   │   │   └── planner/
+│   │   │   │   │       ├── targets.ts               # BMR/TDEE/macros/hydration
+│   │   │   │   │       ├── meal-catalog.ts          # curated dietary-tagged meals
+│   │   │   │   │       └── meal-planner.ts          # slot shares + scaling
 │   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
@@ -126,15 +136,17 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── knowledge-chunker.spec.ts  # Markdown chunker unit tests
 │   │   │   ├── knowledge.service.spec.ts  # Knowledge service unit tests
 │   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
+│   │   │   ├── nutrition-planner.spec.ts  # Target math + meal composition unit tests
+│   │   │   ├── nutrition.service.spec.ts  # Nutrition service unit tests
 │   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
 │   │   │   ├── report-parser.spec.ts  # Findings parser tests
 │   │   │   ├── reports.service.spec.ts# Reports unit tests (fake storage/processor)
 │   │   │   ├── integration/
 │   │   │   │   ├── assistant.integration.spec.ts # DB-backed chat/session tests
 │   │   │   │   ├── auth.integration.spec.ts    # DB-backed API tests
-│   │   │   │   ├── global-setup.ts            # migrates test DB before run
 │   │   │   │   ├── knowledge.integration.spec.ts # DB-backed knowledge ingest/search tests
 │   │   │   │   ├── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
+│   │   │   │   ├── nutrition.integration.spec.ts # DB-backed plan create/list/get/delete tests
 │   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
 │   │   ├── assets/                    # Vendored OCR assets (committed)
@@ -174,6 +186,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── page.tsx       # Search + browse knowledge base (protected)
 │       │   │   ├── assistant/
 │       │   │   │   └── page.tsx       # AI health assistant chat (protected)
+│       │   │   ├── nutrition/
+│       │   │   │   └── page.tsx       # Nutrition planner builder + plan view (protected)
 │       │   │   └── reports/
 │       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
 │       │   │       └── page.tsx       # Report list + upload (protected)
@@ -223,6 +237,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── assistant-api.ts   # Typed chat + session list/get/delete endpoints
 │       │   │   ├── assistant-format.ts # Paragraph splitting + 24h time formatting
 │       │   │   ├── assistant-format.spec.ts
+│       │   │   ├── nutrition-api.ts   # Typed plan create/list/get/delete endpoints
+│       │   │   ├── nutrition-format.ts # Labels + calorie/macro/date formatting
+│       │   │   ├── nutrition-format.spec.ts
 │       │   │   ├── knowledge-api.ts   # Typed knowledge search/list/detail endpoints
 │       │   │   ├── knowledge-format.ts # Category labels + safe <mark> snippet splitter
 │       │   │   ├── knowledge-format.spec.ts
@@ -263,7 +280,10 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/reports.ts       # MedicalReport, ReportFinding, ReportDetail, labels
 │       │   ├── types/user.ts          # PublicUser, AuthSession
 │       │   ├── types/assistant.ts     # ChatRole, ChatSession, ChatMessage, ChatResponse
+│       │   ├── types/nutrition.ts     # NutritionGoal/ActivityLevel/MealType, plan + meal types
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
+│       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
+│       │   ├── validators/nutrition.ts # createNutritionPlan + listNutritionPlansQuery schemas
 │       │   ├── validators/knowledge.ts # create/update/search/list schemas + inferred types
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas

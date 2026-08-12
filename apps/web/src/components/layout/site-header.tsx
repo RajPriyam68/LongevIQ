@@ -51,6 +51,9 @@ function AuthButtons({ compact = false }: { compact?: boolean }) {
           <Link href="/knowledge">Knowledge</Link>
         </Button>
         <Button asChild variant="ghost" className="gap-2">
+          <Link href="/nutrition">Nutrition</Link>
+        </Button>
+        <Button asChild variant="ghost" className="gap-2">
           <Link href="/assistant">Assistant</Link>
         </Button>
         <Button asChild variant="ghost" className="gap-2">

@@ -246,6 +246,28 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   Assistant for signed-in users.
 - **Tests**: 134 API tests (unit + DB-backed integration) and 41 web tests.
 
+### Sprint 7 — Nutrition Planner
+
+- **API**: under `/api/v1/nutrition` — `POST /plans` (build a personalized plan), `GET /plans`
+  (paginated history), `GET /plans/:id`, `DELETE /plans/:id`. Plans are owner-scoped snapshots;
+  cross-user access returns `404`.
+- **Personalized targets**: Mifflin-St Jeor BMR + WHO activity factors → TDEE, goal-adjusted
+  calorie target (weight-loss floor clamped at 1,200 kcal), goal-specific protein (1.2–2.0 g/kg),
+  25%-from-fat macro split, and a 35 ml/kg hydration target.
+- **Meal composition**: a curated catalog of educationally grounded meals tagged by dietary
+  preference. Each plan picks compatible templates (vegetarian, vegan, gluten-free, dairy-free,
+  low-sodium, Mediterranean) deterministically and scales them to per-slot calorie shares
+  (breakfast 25% / lunch 35% / dinner 30% / snack 10%).
+- **Data model**: `NutritionPlan` (profile snapshot + computed targets) and `NutritionMeal`
+  (one row per slot) — migration `20260812161614_add_nutrition_plans`.
+- **Safety**: plan generation is deterministic server-side math with no LLM and no PHI egress; the
+  profile is stored only as a plan snapshot; audit events `DATA.NUTRITION_PLAN_CREATE` /
+  `DATA.NUTRITION_PLAN_DELETE` log summary metadata, never body metrics.
+- **Frontend**: protected `/nutrition` page with a plan builder form (age, sex, weight, height,
+  goal, activity level, dietary-preference chips), a daily-targets summary, a per-meal schedule
+  with macros, and plan history with delete.
+- **Tests**: 178 API tests (unit + DB-backed integration) and 44 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -259,7 +281,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 4      | OCR + medical report parsing **(done)**                    |
 | 5      | Medical knowledge base (RAG) **(done)**                    |
 | 6      | AI health assistant **(done)**                              |
-| 7      | Nutrition planner                                            |
+| 7      | Nutrition planner **(done)**                                |
 | 8      | Workout planner                                              |
 | 9      | Medication reminder                                          |
 | 10     | Voice assistant                                              |
