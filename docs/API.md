@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 7)
+## Current Endpoints (Sprint 8)
 
 ### Health check
 
@@ -912,6 +912,113 @@ meals. Plans owned by other users return `404`.
 
 **Response 200**: `{ "success": true, "data": { "deleted": true } }`
 
+### Workout planner
+
+All endpoints require `Authorization: Bearer <accessToken>`. The planner is deterministic
+server-side math: a profile (goal, fitness level, equipment, weekly availability, body metrics) is
+converted into a weekly session mix (strength vs. cardio split per goal), per-session time
+allocation (warm-up / main work / cool-down), and a curated exercise plan where strength days
+rotate splits by level and sets/reps scale with level and goal. Plans are immutable snapshots owned
+by the user; cross-user access returns `404`.
+
+#### Build a workout plan
+
+`POST /api/v1/workout/plans`
+
+| Field                     | Type         | Required | Notes                                                        |
+| ------------------------- | ------------ | -------- | ------------------------------------------------------------ |
+| `age`                     | int          | yes      | 18–100                                                       |
+| `sex`                     | enum         | yes      | `MALE`, `FEMALE`                                             |
+| `weightKg`                | number       | yes      | 1–300                                                        |
+| `heightCm`                | int          | yes      | 100–250                                                      |
+| `goal`                    | enum         | yes      | `LOSE_WEIGHT`, `MUSCLE_GAIN`, `GENERAL_FITNESS`, `ENDURANCE` |
+| `fitnessLevel`            | enum         | yes      | `BEGINNER`, `INTERMEDIATE`, `ADVANCED`                       |
+| `equipment`               | enum         | yes      | `NONE`, `BASIC`, `FULL_GYM`                                  |
+| `daysPerWeek`             | int          | yes      | 1–7                                                          |
+| `sessionDurationMinutes`  | int          | yes      | 15–120                                                       |
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "plan": {
+      "id": "clz...",
+      "goal": "GENERAL_FITNESS",
+      "fitnessLevel": "BEGINNER",
+      "equipment": "NONE",
+      "age": 32,
+      "sex": "FEMALE",
+      "weightKg": 65,
+      "heightCm": 168,
+      "daysPerWeek": 3,
+      "sessionDurationMinutes": 30,
+      "strengthSessions": 2,
+      "cardioSessions": 1,
+      "weeklyMinutes": 90,
+      "warmupMinutesPerSession": 5,
+      "mainMinutesPerSession": 20,
+      "cooldownMinutesPerSession": 5,
+      "days": [
+        {
+          "id": "clz...",
+          "dayNumber": 1,
+          "focus": "FULL_BODY",
+          "durationMinutes": 30,
+          "warmupMinutes": 5,
+          "mainMinutes": 20,
+          "cooldownMinutes": 5,
+          "notes": "Full body day with 4 exercises...",
+          "exercises": [
+            {
+              "id": "clz...",
+              "name": "Bodyweight squats",
+              "sets": 3,
+              "reps": "12-15",
+              "restSeconds": 60,
+              "notes": "Keep your heels down...",
+              "sortOrder": 0
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-08-13T00:00:00.000Z",
+      "updatedAt": "2026-08-13T00:00:00.000Z"
+    }
+  }
+}
+```
+
+#### List plans
+
+`GET /api/v1/workout/plans?page=1&limit=20`
+
+Returns a paginated list of the caller's plans with a `dayCount` per plan (no nested days):
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [{ "id": "clz...", "goal": "GENERAL_FITNESS", "daysPerWeek": 3, "dayCount": 3 }],
+    "pagination": { "page": 1, "limit": 20, "total": 1, "totalPages": 1 }
+  }
+}
+```
+
+#### Get a plan
+
+`GET /api/v1/workout/plans/:id`
+
+Returns the full plan object (the same shape as the `plan` in the create response) including its
+days and exercises. Plans owned by other users return `404`.
+
+#### Delete a plan
+
+`DELETE /api/v1/workout/plans/:id`
+
+**Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
 ### Not found
 
 Any unknown route returns:
@@ -945,7 +1052,6 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- `GET /api/v1/workouts/plans` (Sprint 8)
 - Medication, voice, analytics, doctor, admin modules (Sprints 9-13)
 
 Swagger/OpenAPI documentation will be generated alongside the analytics module.

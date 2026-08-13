@@ -952,3 +952,191 @@ export function makeNutritionPlan(partial: Partial<NutritionPlanLike> = {}): Nut
     ],
   };
 }
+
+export interface WorkoutExerciseLike {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  restSeconds: number;
+  notes: string | null;
+  sortOrder: number;
+}
+
+export interface WorkoutDayLike {
+  id: string;
+  dayNumber: number;
+  focus: string;
+  durationMinutes: number;
+  warmupMinutes: number;
+  mainMinutes: number;
+  cooldownMinutes: number;
+  notes: string | null;
+  exercises: WorkoutExerciseLike[];
+}
+
+export interface WorkoutPlanLike {
+  id: string;
+  userId: string;
+  goal: string;
+  fitnessLevel: string;
+  equipment: string;
+  age: number;
+  sex: string;
+  weightKg: number;
+  heightCm: number;
+  daysPerWeek: number;
+  sessionDurationMinutes: number;
+  strengthSessions: number;
+  cardioSessions: number;
+  weeklyMinutes: number;
+  warmupMinutesPerSession: number;
+  mainMinutesPerSession: number;
+  cooldownMinutesPerSession: number;
+  createdAt: Date;
+  updatedAt: Date;
+  days: WorkoutDayLike[];
+}
+
+export class FakeWorkoutRepository {
+  plans = new Map<string, WorkoutPlanLike>();
+  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
+
+  async createPlan(input: {
+    userId: string;
+    goal: string;
+    fitnessLevel: string;
+    equipment: string;
+    age: number;
+    sex: string;
+    weightKg: number;
+    heightCm: number;
+    daysPerWeek: number;
+    sessionDurationMinutes: number;
+    strengthSessions: number;
+    cardioSessions: number;
+    weeklyMinutes: number;
+    warmupMinutesPerSession: number;
+    mainMinutesPerSession: number;
+    cooldownMinutesPerSession: number;
+    days: Array<Omit<WorkoutDayLike, 'id'> & { exercises: Array<Omit<WorkoutExerciseLike, 'id'>> }>;
+  }) {
+    const now = nextDate();
+    const plan: WorkoutPlanLike = {
+      id: nextId('wpl'),
+      userId: input.userId,
+      goal: input.goal,
+      fitnessLevel: input.fitnessLevel,
+      equipment: input.equipment,
+      age: input.age,
+      sex: input.sex,
+      weightKg: input.weightKg,
+      heightCm: input.heightCm,
+      daysPerWeek: input.daysPerWeek,
+      sessionDurationMinutes: input.sessionDurationMinutes,
+      strengthSessions: input.strengthSessions,
+      cardioSessions: input.cardioSessions,
+      weeklyMinutes: input.weeklyMinutes,
+      warmupMinutesPerSession: input.warmupMinutesPerSession,
+      mainMinutesPerSession: input.mainMinutesPerSession,
+      cooldownMinutesPerSession: input.cooldownMinutesPerSession,
+      createdAt: now,
+      updatedAt: now,
+      days: input.days.map((day) => ({
+        id: nextId('wdy'),
+        dayNumber: day.dayNumber,
+        focus: day.focus,
+        durationMinutes: day.durationMinutes,
+        warmupMinutes: day.warmupMinutes,
+        mainMinutes: day.mainMinutes,
+        cooldownMinutes: day.cooldownMinutes,
+        notes: day.notes ?? null,
+        exercises: day.exercises.map((exercise, index) => ({
+          id: nextId('wex'),
+          name: exercise.name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          restSeconds: exercise.restSeconds,
+          notes: exercise.notes ?? null,
+          sortOrder: exercise.sortOrder ?? index,
+        })),
+      })),
+    };
+    this.plans.set(plan.id, plan);
+    return plan;
+  }
+
+  async findPlanById(id: string) {
+    return this.plans.get(id) ?? null;
+  }
+
+  async listPlansByUser(userId: string, filter: { page: number; limit: number }) {
+    const items = [...this.plans.values()]
+      .filter((plan) => plan.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const start = (filter.page - 1) * filter.limit;
+    return {
+      items: items
+        .slice(start, start + filter.limit)
+        .map((plan) => ({ ...plan, dayCount: plan.days.length })),
+      total: items.length,
+    };
+  }
+
+  async deletePlan(id: string) {
+    this.plans.delete(id);
+  }
+
+  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+    this.auditCalls.push(input);
+    return Promise.resolve();
+  }
+}
+
+export function makeWorkoutPlan(partial: Partial<WorkoutPlanLike> = {}): WorkoutPlanLike {
+  const now = new Date();
+  return {
+    id: partial.id ?? nextId('wpl'),
+    userId: partial.userId ?? 'usr_user',
+    goal: partial.goal ?? 'GENERAL_FITNESS',
+    fitnessLevel: partial.fitnessLevel ?? 'BEGINNER',
+    equipment: partial.equipment ?? 'NONE',
+    age: partial.age ?? 32,
+    sex: partial.sex ?? 'FEMALE',
+    weightKg: partial.weightKg ?? 65,
+    heightCm: partial.heightCm ?? 168,
+    daysPerWeek: partial.daysPerWeek ?? 3,
+    sessionDurationMinutes: partial.sessionDurationMinutes ?? 30,
+    strengthSessions: partial.strengthSessions ?? 2,
+    cardioSessions: partial.cardioSessions ?? 1,
+    weeklyMinutes: partial.weeklyMinutes ?? 90,
+    warmupMinutesPerSession: partial.warmupMinutesPerSession ?? 5,
+    mainMinutesPerSession: partial.mainMinutesPerSession ?? 20,
+    cooldownMinutesPerSession: partial.cooldownMinutesPerSession ?? 5,
+    createdAt: partial.createdAt ?? now,
+    updatedAt: partial.updatedAt ?? now,
+    days: partial.days ?? [
+      {
+        id: nextId('wdy'),
+        dayNumber: 1,
+        focus: 'FULL_BODY',
+        durationMinutes: 30,
+        warmupMinutes: 5,
+        mainMinutes: 20,
+        cooldownMinutes: 5,
+        notes: null,
+        exercises: [
+          {
+            id: nextId('wex'),
+            name: 'Bodyweight squats',
+            sets: 3,
+            reps: '12-15',
+            restSeconds: 60,
+            notes: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+    ],
+  };
+}

@@ -101,6 +101,36 @@ enum MealType {
   SNACK
 }
 
+enum WorkoutGoal {
+  LOSE_WEIGHT
+  MUSCLE_GAIN
+  GENERAL_FITNESS
+  ENDURANCE
+}
+
+enum FitnessLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum WorkoutEquipment {
+  NONE
+  BASIC
+  FULL_GYM
+}
+
+enum WorkoutDayFocus {
+  FULL_BODY
+  UPPER_BODY
+  LOWER_BODY
+  PUSH
+  PULL
+  LEGS
+  CORE
+  CARDIO
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -125,6 +155,7 @@ model User {
   knowledgeDocuments      KnowledgeDocument[]
   chatSessions            ChatSession[]
   nutritionPlans          NutritionPlan[]
+  workoutPlans            WorkoutPlan[]
 
   @@index([oauthProvider, oauthId])
 }
@@ -295,6 +326,64 @@ model NutritionMeal {
   createdAt    DateTime      @default(now())
 
   @@index([planId, sortOrder])
+}
+
+model WorkoutPlan {
+  id                         String             @id @default(cuid())
+  userId                     String
+  user                       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal                       WorkoutGoal
+  fitnessLevel               FitnessLevel
+  equipment                  WorkoutEquipment
+  age                        Int
+  sex                        BiologicalSex
+  weightKg                   Float
+  heightCm                   Float
+  daysPerWeek                Int
+  sessionDurationMinutes     Int
+  strengthSessions           Int
+  cardioSessions             Int
+  weeklyMinutes              Int
+  warmupMinutesPerSession    Int
+  mainMinutesPerSession      Int
+  cooldownMinutesPerSession  Int
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
+
+  days WorkoutDay[]
+
+  @@index([userId, createdAt])
+}
+
+model WorkoutDay {
+  id              String            @id @default(cuid())
+  planId          String
+  plan            WorkoutPlan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dayNumber       Int
+  focus           WorkoutDayFocus
+  durationMinutes Int
+  warmupMinutes   Int
+  mainMinutes     Int
+  cooldownMinutes Int
+  notes           String?
+
+  exercises WorkoutExercise[]
+
+  @@unique([planId, dayNumber])
+}
+
+model WorkoutExercise {
+  id          String     @id @default(cuid())
+  dayId       String
+  day         WorkoutDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  name        String
+  sets        Int
+  reps        String
+  restSeconds Int
+  notes       String?
+  sortOrder   Int        @default(0)
+
+  @@index([dayId, sortOrder])
 }
 
 model RefreshToken {

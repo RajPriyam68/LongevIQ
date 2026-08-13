@@ -190,6 +190,25 @@ accepted with rationale.
   record actor, plan id, goal, and calorie target — never age, weight, height, sex, or meal data.
   Plan generation is educational and the UI shows the standard disclaimer next to every plan.
 
+## Workout Planner Threat Model (Sprint 8)
+
+- **No LLM, no PHI egress**: plan generation is deterministic server-side math over the request
+  payload (session split, time allocation, exercise selection). No body metrics are ever sent to a
+  third-party provider, so there is no new external surface.
+- **Minimal retention by design**: the profile is stored only as an immutable snapshot on the plan
+  it generated (`WorkoutPlan`), never as a standing user profile. Deleting a plan deletes its
+  snapshot, days, and exercises via `onDelete: Cascade`.
+- **Input bounds**: zod validates the profile (`age` 18–100, `weightKg` 1–300, `heightCm` 100–250,
+  `daysPerWeek` 1–7, `sessionDurationMinutes` 15–120) before any computation, so the generator
+  cannot recommend unsafe training volume.
+- **Tenant isolation**: plans are owner-scoped; reading or deleting another user's plan returns
+  `404 NOT_FOUND` (resource-enumeration resistance, as elsewhere in the platform).
+- **Abuse resistance**: generation is cheap (no rate-limited upstream dependency), so the global
+  per-IP limiter is sufficient; catalog size and weekly session bounds cap the response size.
+- **No secrets in audit or logs**: `DATA.WORKOUT_PLAN_CREATE` / `DATA.WORKOUT_PLAN_DELETE` record
+  actor, plan id, goal, and weekly volume — never age, weight, height, sex, or exercise data.
+  Plan generation is educational and the UI shows the standard disclaimer next to every plan.
+
 ## Upcoming Controls (per Sprint)
 
 - **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied.
@@ -200,9 +219,9 @@ accepted with rationale.
 ## Audit Logging
 
 Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics), Sprint 3
-(reports), Sprint 6 (assistant chats), and Sprint 7 (nutrition plans). Design principles: append-only by policy (no update/delete flows expose it), event
+(reports), Sprint 6 (assistant chats), Sprint 7 (nutrition plans), and Sprint 8 (workout plans). Design principles: append-only by policy (no update/delete flows expose it), event
 classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
-no sensitive payloads (passwords/tokens/metric/report/chat/nutrition data are never written).
+no sensitive payloads (passwords/tokens/metric/report/chat/nutrition/workout data are never written).
 
 ## Dependency Notes
 

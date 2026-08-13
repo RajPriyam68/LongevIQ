@@ -268,6 +268,29 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   with macros, and plan history with delete.
 - **Tests**: 178 API tests (unit + DB-backed integration) and 44 web tests.
 
+### Sprint 8 — Workout Planner
+
+- **API**: under `/api/v1/workout` — `POST /plans` (build a personalized plan), `GET /plans`
+  (paginated history), `GET /plans/:id`, `DELETE /plans/:id`. Plans are owner-scoped snapshots;
+  cross-user access returns `404`.
+- **Personalized targets**: a weekly session mix (strength vs. cardio split per goal), per-session
+  time split (warm-up / main work / cool-down), and weekly volume (days × session length) with
+  safe bounds (1–7 days, 15–120 min sessions).
+- **Exercise selection**: a curated catalog of exercises tagged by day focus, equipment, and
+  minimum fitness level. Strength days rotate splits by level (full-body → upper/lower/core →
+  push/pull/legs), sets scale with fitness level, rep ranges shift by goal, and cardio sessions
+  interleave across the week. Selection is deterministic per profile.
+- **Data model**: `WorkoutPlan` (profile snapshot + computed targets) and `WorkoutDay` +
+  `WorkoutExercise` (one session per day with exercises) — migration
+  `20260813140632_add_workout_plans`.
+- **Safety**: plan generation is deterministic server-side math with no LLM and no PHI egress; the
+  profile is stored only as a plan snapshot; audit events `DATA.WORKOUT_PLAN_CREATE` /
+  `DATA.WORKOUT_PLAN_DELETE` log summary metadata, never body metrics.
+- **Frontend**: protected `/workout` page with a plan builder form (goal, fitness level,
+  equipment, days/week, session length, body metrics), a weekly-targets summary, a per-day
+  schedule with exercises (sets × reps + rests), and plan history with delete.
+- **Tests**: 224 API tests (unit + DB-backed integration) and 48 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -281,8 +304,8 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 4      | OCR + medical report parsing **(done)**                    |
 | 5      | Medical knowledge base (RAG) **(done)**                    |
 | 6      | AI health assistant **(done)**                              |
-| 7      | Nutrition planner **(done)**                                |
-| 8      | Workout planner                                              |
+| 7      | Nutrition planner **(done)**                              |
+| 8      | Workout planner **(done)**                               |
 | 9      | Medication reminder                                          |
 | 10     | Voice assistant                                              |
 | 11     | Health score & analytics                                     |

@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 7)
+## Current Structure (Sprint 8)
 
 ```
 .
@@ -92,6 +92,16 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │       ├── targets.ts               # BMR/TDEE/macros/hydration
 │   │   │   │   │       ├── meal-catalog.ts          # curated dietary-tagged meals
 │   │   │   │   │       └── meal-planner.ts          # slot shares + scaling
+│   │   │   │   ├── workout/          # Workout planner (Sprint 8)
+│   │   │   │   │   ├── workout.controller.ts
+│   │   │   │   │   ├── workout.repository.ts        # Prisma plans + days + exercises
+│   │   │   │   │   ├── workout.repository.types.ts
+│   │   │   │   │   ├── workout.routes.ts            # POST/GET/DELETE /plans
+│   │   │   │   │   ├── workout.service.ts           # weekly composition + serialization
+│   │   │   │   │   └── planner/
+│   │   │   │   │       ├── targets.ts               # strength/cardio split + time allocation
+│   │   │   │   │       ├── exercise-catalog.ts      # curated focus/equipment/level-tagged exercises
+│   │   │   │   │       └── weekly-planner.ts        # split rotation + sets/reps scaling
 │   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
@@ -138,6 +148,8 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
 │   │   │   ├── nutrition-planner.spec.ts  # Target math + meal composition unit tests
 │   │   │   ├── nutrition.service.spec.ts  # Nutrition service unit tests
+│   │   │   ├── workout-planner.spec.ts    # Target math + weekly composition unit tests
+│   │   │   ├── workout.service.spec.ts    # Workout service unit tests
 │   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
 │   │   │   ├── report-parser.spec.ts  # Findings parser tests
 │   │   │   ├── reports.service.spec.ts# Reports unit tests (fake storage/processor)
@@ -147,6 +159,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   ├── knowledge.integration.spec.ts # DB-backed knowledge ingest/search tests
 │   │   │   │   ├── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
 │   │   │   │   ├── nutrition.integration.spec.ts # DB-backed plan create/list/get/delete tests
+│   │   │   │   ├── workout.integration.spec.ts # DB-backed plan create/list/get/delete tests
 │   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
 │   │   ├── assets/                    # Vendored OCR assets (committed)
@@ -188,6 +201,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── page.tsx       # AI health assistant chat (protected)
 │       │   │   ├── nutrition/
 │       │   │   │   └── page.tsx       # Nutrition planner builder + plan view (protected)
+│       │   │   ├── workout/
+│       │   │   │   └── page.tsx       # Workout planner builder + weekly plan view (protected)
 │       │   │   └── reports/
 │       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
 │       │   │       └── page.tsx       # Report list + upload (protected)
@@ -240,6 +255,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── nutrition-api.ts   # Typed plan create/list/get/delete endpoints
 │       │   │   ├── nutrition-format.ts # Labels + calorie/macro/date formatting
 │       │   │   ├── nutrition-format.spec.ts
+│       │   │   ├── workout-api.ts     # Typed plan create/list/get/delete endpoints
+│       │   │   ├── workout-format.ts  # Labels + minutes/rest/date formatting
+│       │   │   ├── workout-format.spec.ts
 │       │   │   ├── knowledge-api.ts   # Typed knowledge search/list/detail endpoints
 │       │   │   ├── knowledge-format.ts # Category labels + safe <mark> snippet splitter
 │       │   │   ├── knowledge-format.spec.ts
@@ -281,9 +299,11 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/user.ts          # PublicUser, AuthSession
 │       │   ├── types/assistant.ts     # ChatRole, ChatSession, ChatMessage, ChatResponse
 │       │   ├── types/nutrition.ts     # NutritionGoal/ActivityLevel/MealType, plan + meal types
+│       │   ├── types/workout.ts       # WorkoutGoal/FitnessLevel/Equipment/DayFocus, plan/day/exercise types
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/nutrition.ts # createNutritionPlan + listNutritionPlansQuery schemas
+│       │   ├── validators/workout.ts   # createWorkoutPlan + listWorkoutPlansQuery schemas
 │       │   ├── validators/knowledge.ts # create/update/search/list schemas + inferred types
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas

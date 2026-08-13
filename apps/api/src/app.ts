@@ -19,6 +19,7 @@ import { createReportsRouter } from './modules/reports/reports.routes.js';
 import { createKnowledgeRouter } from './modules/knowledge/knowledge.routes.js';
 import { createAssistantRouter } from './modules/assistant/assistant.routes.js';
 import { createNutritionRouter } from './modules/nutrition/nutrition.routes.js';
+import { createWorkoutRouter } from './modules/workout/workout.routes.js';
 
 export interface AppOptions {
   container?: Partial<Container>;
@@ -106,6 +107,11 @@ export function createApp(options: AppOptions = {}): Express {
     '/nutrition',
     requireAuth(container.tokenService),
     createNutritionRouter(container.nutritionService),
+  );
+  apiRouter.use(
+    '/workout',
+    requireAuth(container.tokenService),
+    createWorkoutRouter(container.workoutService),
   );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);
