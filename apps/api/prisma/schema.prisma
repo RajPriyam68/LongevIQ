@@ -131,6 +131,24 @@ enum WorkoutDayFocus {
   CARDIO
 }
 
+enum MedicationForm {
+  PILL
+  CAPSULE
+  LIQUID
+  INHALER
+  INJECTION
+  CREAM
+  OINTMENT
+  DROPS
+  OTHER
+}
+
+enum MedicationAdherenceStatus {
+  PENDING
+  TAKEN
+  SKIPPED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -156,6 +174,7 @@ model User {
   chatSessions            ChatSession[]
   nutritionPlans          NutritionPlan[]
   workoutPlans            WorkoutPlan[]
+  medications             Medication[]
 
   @@index([oauthProvider, oauthId])
 }
@@ -384,6 +403,50 @@ model WorkoutExercise {
   sortOrder   Int        @default(0)
 
   @@index([dayId, sortOrder])
+}
+
+model Medication {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  dosage        String
+  form          MedicationForm @default(PILL)
+  // Per-day reminder schedule in 24-hour HH:mm format (sorted, unique).
+  reminderTimes String[]
+  instructions  String?
+  notes         String?
+  // Calendar dates normalized to UTC midnight. The medication only appears on
+  // the daily schedule between startDate and endDate (inclusive).
+  startDate     DateTime       @default(now())
+  endDate       DateTime?
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  adherence MedicationAdherence[]
+
+  @@index([userId, createdAt])
+  @@index([userId, active])
+}
+
+model MedicationAdherence {
+  id           String                   @id @default(cuid())
+  medicationId String
+  medication   Medication               @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  // Snapshot of the scheduled dose time (HH:mm) so historical logs survive
+  // reminder-schedule edits.
+  time         String
+  // Calendar date normalized to UTC midnight.
+  date         DateTime
+  status       MedicationAdherenceStatus @default(PENDING)
+  takenAt      DateTime?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@unique([medicationId, time, date])
+  @@index([medicationId, date])
+  @@index([date])
 }
 
 model RefreshToken {

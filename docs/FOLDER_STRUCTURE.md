@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 8)
+## Current Structure (Sprint 9)
 
 ```
 .
@@ -22,8 +22,8 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── package.json
 │   │   ├── prisma/
 │   │   │   ├── .env.example           # DATABASE_URL template
-│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric, MedicalReport, KnowledgeDocument, KnowledgeChunk
-│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics, add_medical_reports, add_knowledge_base (20260810021451)
+│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric, MedicalReport, KnowledgeDocument, KnowledgeChunk, NutritionPlan, WorkoutPlan, Medication, MedicationAdherence
+│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics, add_medical_reports, add_report_findings, add_knowledge_base, add_ai_assistant, add_nutrition_plans, add_workout_plans, add_medication_reminders
 │   │   │   └── seed.ts                # Demo users (admin/doctor/user)
 │   │   │   └── seed-knowledge.ts      # 13 curated knowledge articles (kb:seed)
 │   │   ├── src/
@@ -102,6 +102,12 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │       ├── targets.ts               # strength/cardio split + time allocation
 │   │   │   │   │       ├── exercise-catalog.ts      # curated focus/equipment/level-tagged exercises
 │   │   │   │   │       └── weekly-planner.ts        # split rotation + sets/reps scaling
+│   │   │   │   ├── medications/      # Medication reminders (Sprint 9)
+│   │   │   │   │   ├── medication.controller.ts
+│   │   │   │   │   ├── medication.repository.ts      # Prisma medications + adherence
+│   │   │   │   │   ├── medication.repository.types.ts
+│   │   │   │   │   ├── medication.routes.ts          # CRUD + /schedule + /:id/adherence
+│   │   │   │   │   └── medication.service.ts         # daily schedule + adherence + audit
 │   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
@@ -145,6 +151,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── health.spec.ts         # API tests (supertest)
 │   │   │   ├── knowledge-chunker.spec.ts  # Markdown chunker unit tests
 │   │   │   ├── knowledge.service.spec.ts  # Knowledge service unit tests
+│   │   │   ├── medication.service.spec.ts # Medication service unit tests
 │   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
 │   │   │   ├── nutrition-planner.spec.ts  # Target math + meal composition unit tests
 │   │   │   ├── nutrition.service.spec.ts  # Nutrition service unit tests
@@ -157,6 +164,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   ├── assistant.integration.spec.ts # DB-backed chat/session tests
 │   │   │   │   ├── auth.integration.spec.ts    # DB-backed API tests
 │   │   │   │   ├── knowledge.integration.spec.ts # DB-backed knowledge ingest/search tests
+│   │   │   │   ├── medication.integration.spec.ts # DB-backed medication/adherence tests
 │   │   │   │   ├── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
 │   │   │   │   ├── nutrition.integration.spec.ts # DB-backed plan create/list/get/delete tests
 │   │   │   │   ├── workout.integration.spec.ts # DB-backed plan create/list/get/delete tests
@@ -203,6 +211,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── page.tsx       # Nutrition planner builder + plan view (protected)
 │       │   │   ├── workout/
 │       │   │   │   └── page.tsx       # Workout planner builder + weekly plan view (protected)
+│       │   │   ├── medications/
+│       │   │   │   └── page.tsx       # Medication reminders + daily schedule (protected)
 │       │   │   └── reports/
 │       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
 │       │   │       └── page.tsx       # Report list + upload (protected)
@@ -224,7 +234,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── layout/
 │       │   │   │   ├── medical-disclaimer.tsx
 │       │   │   │   ├── site-footer.tsx
-│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports/Knowledge links)
+│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports/Knowledge/Nutrition/Workout/Medications links)
 │       │   │   │   └── theme-toggle.tsx
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
@@ -258,6 +268,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── workout-api.ts     # Typed plan create/list/get/delete endpoints
 │       │   │   ├── workout-format.ts  # Labels + minutes/rest/date formatting
 │       │   │   ├── workout-format.spec.ts
+│       │   │   ├── medications-api.ts # Typed medication + schedule + adherence endpoints
+│       │   │   ├── medications-format.ts # Form/status labels + time/date formatting
+│       │   │   ├── medications-format.spec.ts
 │       │   │   ├── knowledge-api.ts   # Typed knowledge search/list/detail endpoints
 │       │   │   ├── knowledge-format.ts # Category labels + safe <mark> snippet splitter
 │       │   │   ├── knowledge-format.spec.ts
@@ -300,10 +313,12 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/assistant.ts     # ChatRole, ChatSession, ChatMessage, ChatResponse
 │       │   ├── types/nutrition.ts     # NutritionGoal/ActivityLevel/MealType, plan + meal types
 │       │   ├── types/workout.ts       # WorkoutGoal/FitnessLevel/Equipment/DayFocus, plan/day/exercise types
+│       │   ├── types/medication.ts    # MedicationForm/AdherenceStatus, medication + schedule + dose types
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/nutrition.ts # createNutritionPlan + listNutritionPlansQuery schemas
 │       │   ├── validators/workout.ts   # createWorkoutPlan + listWorkoutPlansQuery schemas
+│       │   ├── validators/medication.ts # create/update/list/schedule/setDoseStatus schemas
 │       │   ├── validators/knowledge.ts # create/update/search/list schemas + inferred types
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas

@@ -209,19 +209,41 @@ accepted with rationale.
   actor, plan id, goal, and weekly volume — never age, weight, height, sex, or exercise data.
   Plan generation is educational and the UI shows the standard disclaimer next to every plan.
 
+## Medication Reminder Threat Model (Sprint 9)
+
+- **No LLM, no PHI egress**: the module is deterministic CRUD + date math over the request payload;
+  nothing is sent to a third-party provider, so there is no new external surface.
+- **Tenant isolation**: medications are owner-scoped; reading, updating, deleting, or marking a dose
+  for another user's medication returns `404 NOT_FOUND` (resource-enumeration resistance, as
+  elsewhere in the platform).
+- **Input bounds**: zod validates names/dosage lengths, forms, reminder times (`HH:mm`, 1–6),
+  calendar dates (`YYYY-MM-DD`), and date ordering (`endDate >= startDate`) before persistence, and
+  `setDoseStatus` rejects times that are not scheduled (`404`) and dates past the medication's end
+  date (`400`).
+- **Abuse resistance**: adherence rows are upserts keyed by `(medicationId, time, date)` — repeated
+  identical writes converge instead of accumulating; the global per-IP limiter covers any bulk
+  behavior; `reminderTimes` is capped at 6 entries per medication.
+- **Minimal retention**: adherence history is the only retained log of the schedule, keyed to
+  survive reminder-schedule edits; deleting a medication cascades to its adherence rows.
+- **No secrets in audit or logs**: `DATA.MEDICATION_CREATE` / `DATA.MEDICATION_UPDATE` /
+  `DATA.MEDICATION_DELETE` / `DATA.MEDICATION_DOSE_STATUS` record actor, resource id, form, dose
+  count, and dose status — never medication names, dosages, instructions, notes, or dates.
+  Reminder guidance is educational and the UI shows the standard disclaimer next to the schedule.
+
 ## Upcoming Controls (per Sprint)
 
-- **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied.
-- **Sprint 9**: time-based one-time tokens for medication reminders.
+- **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied; time-based
+  one-time tokens for medication reminders (Sprint 10+).
 - **Sprint 13**: admin audit log reader, role escalation guardrails.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.
 
 ## Audit Logging
 
 Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics), Sprint 3
-(reports), Sprint 6 (assistant chats), Sprint 7 (nutrition plans), and Sprint 8 (workout plans). Design principles: append-only by policy (no update/delete flows expose it), event
+(reports), Sprint 6 (assistant chats), Sprint 7 (nutrition plans), Sprint 8 (workout plans), and
+Sprint 9 (medication reminders). Design principles: append-only by policy (no update/delete flows expose it), event
 classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
-no sensitive payloads (passwords/tokens/metric/report/chat/nutrition/workout data are never written).
+no sensitive payloads (passwords/tokens/metric/report/chat/nutrition/workout/medication data are never written).
 
 ## Dependency Notes
 

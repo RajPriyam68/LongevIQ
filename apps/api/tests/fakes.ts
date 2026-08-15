@@ -13,6 +13,10 @@ import type {
   ChatSessionRecord,
 } from '../src/modules/assistant/assistant.repository.types.js';
 import type { LlmMessage } from '../src/modules/assistant/llm/llm-client.js';
+import type {
+  MedicationAdherenceStatus,
+  MedicationForm,
+} from '../src/modules/medications/medication.repository.types.js';
 
 let seq = 0;
 let nowOffset = 0;
@@ -1139,4 +1143,178 @@ export function makeWorkoutPlan(partial: Partial<WorkoutPlanLike> = {}): Workout
       },
     ],
   };
+}
+
+export interface MedicationLike {
+  id: string;
+  userId: string;
+  name: string;
+  dosage: string;
+  form: MedicationForm;
+  reminderTimes: string[];
+  instructions: string | null;
+  notes: string | null;
+  startDate: Date;
+  endDate: Date | null;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MedicationAdherenceLike {
+  id: string;
+  medicationId: string;
+  time: string;
+  date: Date;
+  status: MedicationAdherenceStatus;
+  takenAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class FakeMedicationRepository {
+  medications = new Map<string, MedicationLike>();
+  adherence = new Map<string, MedicationAdherenceLike>();
+  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
+
+  async create(input: {
+    userId: string;
+    name: string;
+    dosage: string;
+    form: MedicationForm;
+    reminderTimes: string[];
+    instructions: string | null;
+    notes: string | null;
+    startDate: Date;
+    endDate: Date | null;
+    active: boolean;
+  }): Promise<MedicationLike> {
+    const now = nextDate();
+    const medication: MedicationLike = {
+      id: nextId('med'),
+      userId: input.userId,
+      name: input.name,
+      dosage: input.dosage,
+      form: input.form,
+      reminderTimes: input.reminderTimes,
+      instructions: input.instructions,
+      notes: input.notes,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      active: input.active,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.medications.set(medication.id, medication);
+    return medication;
+  }
+
+  async findById(id: string): Promise<MedicationLike | null> {
+    return this.medications.get(id) ?? null;
+  }
+
+  async listByUser(
+    userId: string,
+    filter: { page: number; limit: number; active?: boolean },
+  ): Promise<{ items: Array<MedicationLike & { doseCount: number }>; total: number }> {
+    const items = [...this.medications.values()]
+      .filter((medication) => medication.userId === userId)
+      .filter((medication) =>
+        filter.active === undefined ? true : medication.active === filter.active,
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const start = (filter.page - 1) * filter.limit;
+    return {
+      items: items
+        .slice(start, start + filter.limit)
+        .map((medication) => ({ ...medication, doseCount: medication.reminderTimes.length })),
+      total: items.length,
+    };
+  }
+
+  async update(id: string, data: Partial<MedicationLike>): Promise<MedicationLike> {
+    const medication = this.medications.get(id);
+    if (!medication) throw new Error(`medication ${id} not found`);
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) clean[key] = value;
+    }
+    const updated = { ...medication, ...clean, updatedAt: new Date() } as MedicationLike;
+    this.medications.set(id, updated);
+    return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.medications.delete(id);
+    for (const [key, row] of this.adherence.entries()) {
+      if (row.medicationId === id) {
+        this.adherence.delete(key);
+      }
+    }
+  }
+
+  async listScheduledForDate(userId: string, date: Date): Promise<MedicationLike[]> {
+    const day = startOfUtcDay(date);
+    return [...this.medications.values()].filter((medication) => {
+      if (medication.userId !== userId) return false;
+      if (!medication.active) return false;
+      if (startOfUtcDay(medication.startDate) > day) return false;
+      if (medication.endDate !== null && startOfUtcDay(medication.endDate) < day) return false;
+      return true;
+    });
+  }
+
+  async listAdherenceForDate(userId: string, date: Date): Promise<MedicationAdherenceLike[]> {
+    const day = startOfUtcDay(date);
+    const ownedIds = new Set(
+      [...this.medications.values()].filter((m) => m.userId === userId).map((m) => m.id),
+    );
+    return [...this.adherence.values()].filter(
+      (row) => ownedIds.has(row.medicationId) && row.date.getTime() === day.getTime(),
+    );
+  }
+
+  async upsertAdherence(input: {
+    medicationId: string;
+    time: string;
+    date: Date;
+    status: MedicationAdherenceStatus;
+    takenAt: Date | null;
+  }): Promise<MedicationAdherenceLike> {
+    const day = startOfUtcDay(input.date);
+    const key = `${input.medicationId}:${input.time}:${day.getTime()}`;
+    const existing = this.adherence.get(key);
+    const now = new Date();
+    if (existing) {
+      const updated = { ...existing, status: input.status, takenAt: input.takenAt, updatedAt: now };
+      this.adherence.set(key, updated);
+      return updated;
+    }
+    const row: MedicationAdherenceLike = {
+      id: nextId('mad'),
+      medicationId: input.medicationId,
+      time: input.time,
+      date: day,
+      status: input.status,
+      takenAt: input.takenAt,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.adherence.set(key, row);
+    return row;
+  }
+
+  async deleteAdherence(medicationId: string, time: string, date: Date): Promise<void> {
+    const day = startOfUtcDay(date);
+    this.adherence.delete(`${medicationId}:${time}:${day.getTime()}`);
+  }
+
+  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+    this.auditCalls.push(input);
+    return Promise.resolve();
+  }
+}
+
+function startOfUtcDay(value: Date): Date {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
 }

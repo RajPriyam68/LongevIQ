@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 8)
+## Current Endpoints (Sprint 9)
 
 ### Health check
 
@@ -1019,6 +1019,135 @@ days and exercises. Plans owned by other users return `404`.
 
 **Response 200**: `{ "success": true, "data": { "deleted": true } }`
 
+### Medication reminders
+
+All endpoints require `Authorization: Bearer <accessToken>`. Medications are owner-scoped;
+cross-user access returns `404`. Reminder times are 24-hour `HH:mm` strings, sorted and
+deduplicated on write. Dates are calendar `YYYY-MM-DD` values normalized to UTC midnight.
+
+#### Create a medication
+
+`POST /api/v1/medications`
+
+| Field            | Type     | Required | Notes                                                            |
+| ---------------- | -------- | -------- | ---------------------------------------------------------------- |
+| `name`           | string   | yes      | 1–100 characters                                                 |
+| `dosage`         | string   | yes      | 1–60 characters, e.g. `500 mg`                                   |
+| `form`           | enum     | no       | `PILL`, `CAPSULE`, `LIQUID`, `INHALER`, `INJECTION`, `CREAM`, `OINTMENT`, `DROPS`, `OTHER` (default `PILL`) |
+| `reminderTimes`  | string[] | yes      | 1–6 times in `HH:mm` format                                      |
+| `instructions`   | string   | no       | Up to 500 characters                                             |
+| `notes`          | string   | no       | Up to 1000 characters                                            |
+| `startDate`      | string   | no       | `YYYY-MM-DD`, defaults to today                                  |
+| `endDate`        | string   | no       | `YYYY-MM-DD`, must not precede `startDate`                       |
+| `active`         | boolean  | no       | Defaults to `true`                                               |
+
+**Response 201**
+
+```json
+{
+  "success": true,
+  "data": {
+    "medication": {
+      "id": "clz...",
+      "name": "Metformin",
+      "dosage": "500 mg",
+      "form": "PILL",
+      "reminderTimes": ["08:00", "20:00"],
+      "instructions": "Take with food.",
+      "notes": null,
+      "startDate": "2026-08-10",
+      "endDate": "2026-08-31",
+      "active": true,
+      "createdAt": "2026-08-15T00:00:00.000Z",
+      "updatedAt": "2026-08-15T00:00:00.000Z"
+    }
+  }
+}
+```
+
+#### List medications
+
+`GET /api/v1/medications?page=1&limit=20&active=true`
+
+Returns a paginated list of the caller's medications (sorted by name) with a `doseCount` per
+medication:
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [{ "id": "clz...", "name": "Metformin", "reminderTimes": ["08:00", "20:00"], "doseCount": 2 }],
+    "pagination": { "page": 1, "limit": 20, "total": 1, "totalPages": 1 }
+  }
+}
+```
+
+#### Get a medication
+
+`GET /api/v1/medications/:id`
+
+Returns the full medication object (the same shape as in the create response). Medications owned by
+other users return `404`.
+
+#### Update a medication
+
+`PATCH /api/v1/medications/:id`
+
+Accepts any subset of the create fields (`name`, `dosage`, `form`, `reminderTimes`, `instructions`,
+`notes`, `startDate`, `endDate`, `active`). At least one field must be provided. Returns the updated
+medication.
+
+#### Delete a medication
+
+`DELETE /api/v1/medications/:id`
+
+**Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
+#### Get the daily schedule
+
+`GET /api/v1/medications/schedule?date=YYYY-MM-DD`
+
+Expands the caller's active medications into one dose row per reminder time for the requested date
+(medications must be within their start/end range), merges stored adherence, and sorts by time.
+Without `date`, today is used.
+
+```json
+{
+  "success": true,
+  "data": {
+    "schedule": {
+      "date": "2026-08-15",
+      "doses": [
+        {
+          "medicationId": "clz...",
+          "medicationName": "Metformin",
+          "dosage": "500 mg",
+          "form": "PILL",
+          "time": "08:00",
+          "status": "TAKEN",
+          "takenAt": "2026-08-15T08:05:00.000Z",
+          "adherenceId": "clz..."
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Set a dose status
+
+`POST /api/v1/medications/:id/adherence`
+
+| Field    | Type   | Required | Notes                                        |
+| -------- | ------ | -------- | -------------------------------------------- |
+| `date`   | string | yes      | `YYYY-MM-DD`                                 |
+| `time`   | string | yes      | `HH:mm`, must be one of the medication's reminder times |
+| `status` | enum   | yes      | `PENDING`, `TAKEN`, `SKIPPED`                |
+
+`TAKEN` and `SKIPPED` upsert an adherence row; `PENDING` removes it. Returns the refreshed schedule
+for that date. A time that is not scheduled returns `404`; a date after the medication's `endDate`
+returns `400`.
+
 ### Not found
 
 Any unknown route returns:
@@ -1052,6 +1181,6 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- Medication, voice, analytics, doctor, admin modules (Sprints 9-13)
+- Voice, analytics, doctor, admin modules (Sprints 10-13)
 
 Swagger/OpenAPI documentation will be generated alongside the analytics module.

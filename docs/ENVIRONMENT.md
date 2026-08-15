@@ -70,6 +70,11 @@ missing required variables cause the process to **fail fast**.
 > runtime** — LongevIQ never reads or injects platform environment keys. Leaving `USER_LLM_API_KEY`
 > empty keeps the assistant in a graceful "not configured" mode that still stores the exchange.
 
+> **Medication reminders (Sprint 9).** The reminders module is deterministic CRUD + date math over
+> `Medication` and `MedicationAdherence` rows; it needs no extra configuration beyond
+> `DATABASE_URL`. No email/SMS/TOTP delivery is wired up yet — that is planned for the
+> notifications sprint.
+
 ### Placeholders for upcoming Sprints
 
 These are documented now for planning; they are consumed by later Sprints:
@@ -77,7 +82,7 @@ These are documented now for planning; they are consumed by later Sprints:
 | Variable                | Sprint | Purpose                        |
 | ----------------------- | ------ | ------------------------------ |
 | `OPENAI_EMBEDDING_MODEL`| later  | Semantic-layer embedding model (pgvector) |
-| `REDIS_URL`             | 9/14   | Queues / notifications         |
+| `REDIS_URL`             | 14     | Queues / notifications         |
 
 ## Web (`apps/web/.env`)
 

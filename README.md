@@ -291,6 +291,29 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   schedule with exercises (sets × reps + rests), and plan history with delete.
 - **Tests**: 224 API tests (unit + DB-backed integration) and 48 web tests.
 
+### Sprint 9 — Medication Reminders
+
+- **API**: under `/api/v1/medications` — `POST /` (add a medication), `GET /` (paginated list with
+  `doseCount` and `active` filter), `GET /schedule?date=YYYY-MM-DD` (daily dose schedule),
+  `GET /:id`, `PATCH /:id`, `DELETE /:id`, and `POST /:id/adherence` (mark a dose taken / skipped /
+  pending). Medications are owner-scoped; cross-user access returns `404`.
+- **Daily schedule**: each medication defines 1–6 reminder times (`HH:mm`, sorted and deduplicated)
+  and an optional date range. The schedule endpoint expands active medications into one dose row per
+  reminder time for the requested date, merges stored adherence, and sorts doses by time.
+- **Adherence tracking**: `MedicationAdherence` rows are keyed by `(medicationId, time, date)` so
+  history survives reminder-schedule edits; `TAKEN` records a `takenAt` timestamp, `PENDING`
+  removes the row.
+- **Data model**: `Medication` (name, dosage, form, reminder times, instructions, notes, date range,
+  active flag) and `MedicationAdherence` — migration
+  `20260815045101_add_medication_reminders`.
+- **Safety**: no PHI beyond the user's own data; audit events `DATA.MEDICATION_CREATE` /
+  `DATA.MEDICATION_UPDATE` / `DATA.MEDICATION_DELETE` / `DATA.MEDICATION_DOSE_STATUS` log summary
+  metadata only. Reminder guidance is educational, never a medical prescription.
+- **Frontend**: protected `/medications` page with an add/edit form (name, dosage, form, reminder
+  times, instructions, notes, date range, active), a medication list with dose frequency, and a
+  daily schedule with previous/today/next navigation and per-dose take/skip toggles.
+- **Tests**: 258 API tests (unit + DB-backed integration) and 53 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -306,7 +329,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 6      | AI health assistant **(done)**                              |
 | 7      | Nutrition planner **(done)**                              |
 | 8      | Workout planner **(done)**                               |
-| 9      | Medication reminder                                          |
+| 9      | Medication reminder **(done)**                        |
 | 10     | Voice assistant                                              |
 | 11     | Health score & analytics                                     |
 | 12     | Doctor portal                                                |

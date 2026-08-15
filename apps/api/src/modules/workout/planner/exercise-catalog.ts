@@ -1,8 +1,4 @@
-import type {
-  FitnessLevel,
-  WorkoutDayFocus,
-  WorkoutEquipment,
-} from '@longeviq/shared';
+import type { FitnessLevel, WorkoutDayFocus, WorkoutEquipment } from '@longeviq/shared';
 
 export interface ExerciseTemplate {
   name: string;
