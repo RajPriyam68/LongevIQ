@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 10)
+## Current Structure (Sprint 11)
 
 ```
 .
@@ -108,12 +108,16 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── medication.repository.types.ts
 │   │   │   │   │   ├── medication.routes.ts          # CRUD + /schedule + /:id/adherence
 │   │   │   │   │   └── medication.service.ts         # daily schedule + adherence + audit
-│   │   │   │   ├── voice/             # Voice assistant (Sprint 10)
+│   │   │   ├── voice/             # Voice assistant (Sprint 10)
 │   │   │   │   │   ├── voice.controller.ts           # GET/PUT preferences + capabilities
 │   │   │   │   │   ├── voice.repository.ts           # Prisma voice preferences
 │   │   │   │   │   ├── voice.repository.types.ts
 │   │   │   │   │   ├── voice.routes.ts               # /preferences + /config
 │   │   │   │   │   └── voice.service.ts              # defaults + partial upsert + audit
+│   │   │   │   ├── analytics/       # Health score & analytics (Sprint 11)
+│   │   │   │   │   ├── analytics.controller.ts       # GET summary/score/insights
+│   │   │   │   │   ├── analytics.routes.ts           # /summary + /score + /insights
+│   │   │   │   │   └── analytics.service.ts          # score math + stats + insights (read-only)
 │   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
@@ -162,6 +166,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── nutrition-planner.spec.ts  # Target math + meal composition unit tests
 │   │   │   ├── nutrition.service.spec.ts  # Nutrition service unit tests
 │   │   │   ├── voice.service.spec.ts      # Voice preference service unit tests
+│   │   │   ├── analytics.service.spec.ts  # Health score, summary, insights unit tests
 │   │   │   ├── workout-planner.spec.ts    # Target math + weekly composition unit tests
 │   │   │   ├── workout.service.spec.ts    # Workout service unit tests
 │   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
@@ -176,6 +181,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   ├── nutrition.integration.spec.ts # DB-backed plan create/list/get/delete tests
 │   │   │   │   ├── workout.integration.spec.ts # DB-backed plan create/list/get/delete tests
 │   │   │   │   ├── voice.integration.spec.ts # DB-backed voice preference tests
+│   │   │   │   ├── analytics.integration.spec.ts # DB-backed analytics score/summary/insights tests
 │   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
 │   │   ├── assets/                    # Vendored OCR assets (committed)
@@ -210,6 +216,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── verify-email/page.tsx
 │       │   │   ├── dashboard/
 │       │   │   │   └── page.tsx       # Health dashboard (protected)
+│       │   │   ├── analytics/
+│       │   │   │   └── page.tsx       # Health score & analytics (protected)
 │       │   │   ├── knowledge/
 │       │   │   │   ├── [id]/page.tsx  # Article detail (protected)
 │       │   │   │   └── page.tsx       # Search + browse knowledge base (protected)
@@ -230,6 +238,11 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   ├── read-aloud-button.tsx  # TTS button for assistant replies
 │       │   │   │   ├── voice-input-button.tsx # STT microphone button
 │       │   │   │   └── voice-settings.tsx     # read-aloud/auto-read/rate/pitch/voice panel
+│       │   │   ├── analytics/         # Sprint 11 analytics UI
+│       │   │   │   ├── score-gauge.tsx          # SVG ring gauge + label
+│       │   │   │   ├── score-components.tsx     # per-metric sub-score bars
+│       │   │   │   ├── metric-analytics-card.tsx # status/range bar/sparkline per metric
+│       │   │   │   └── analytics-insights.tsx   # severity-styled insights list
 │       │   │   ├── auth/
 │       │   │   │   ├── guest-only.tsx
 │       │   │   │   └── require-auth.tsx
@@ -278,6 +291,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── speech.spec.ts
 │       │   │   ├── voice-api.ts       # Typed voice preferences/config endpoints
 │       │   │   ├── voice-hooks.ts     # react-query hooks + speaking-state subscription
+│       │   │   ├── analytics-api.ts   # Typed analytics summary/score/insights endpoints
+│       │   │   ├── analytics-format.ts # Score tone + status/direction/range labels
+│       │   │   ├── analytics-format.spec.ts
 │       │   │   ├── nutrition-api.ts   # Typed plan create/list/get/delete endpoints
 │       │   │   ├── nutrition-format.ts # Labels + calorie/macro/date formatting
 │       │   │   ├── nutrition-format.spec.ts
@@ -331,6 +347,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/workout.ts       # WorkoutGoal/FitnessLevel/Equipment/DayFocus, plan/day/exercise types
 │       │   ├── types/medication.ts    # MedicationForm/AdherenceStatus, medication + schedule + dose types
 │       │   ├── types/voice.ts         # VoiceInputMethod, VoicePreferences, VoiceCapabilities + bounds
+│       │   ├── types/analytics.ts     # Health score, metric analytics, insights + score math
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/nutrition.ts # createNutritionPlan + listNutritionPlansQuery schemas
@@ -339,6 +356,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── validators/knowledge.ts # create/update/search/list schemas + inferred types
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/voice.ts     # updateVoicePreferencesSchema
+│       │   ├── validators/analytics.ts # analyticsQuerySchema (days 1-365)
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
 │       │   ├── validators/reports.ts  # createReportMetadata/updateReport/listReportsQuery schemas
 │       │   └── index.ts

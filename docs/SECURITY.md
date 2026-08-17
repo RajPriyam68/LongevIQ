@@ -250,6 +250,22 @@ accepted with rationale.
   metadata (booleans, rate, pitch, locale); speech and chat text are never written to audit
   entries or structured logs.
 
+## Health Analytics Threat Model (Sprint 11)
+
+- **Read-only, computed on demand**: the analytics module derives its output from the user's own
+  `HealthMetric` rows and persists nothing — there is no new table, cache, or score snapshot, and
+  no analytics write surface to attack.
+- **Tenant isolation**: every endpoint is keyed by the authenticated user id only, so there is no
+  cross-user analytics surface (matching the owner-scoped 404 pattern used elsewhere).
+- **Input bounds**: the shared `analyticsQuerySchema` coerces and clamps `days` to an integer
+  1–365, so the lookback window cannot be used for unbounded reads or parameter confusion.
+- **No data exposure beyond the user's own metrics**: responses contain the user's own values,
+  derived statistics, and generic educational reference ranges; they never include other users'
+  data and are not logged or audited (consistent with other read surfaces such as the dashboard
+  overview).
+- **Educational guardrail**: score bands and insights use widely-cited reference ranges and are
+  presented with the standard medical disclaimer; the score never claims a diagnosis.
+
 ## Upcoming Controls (per Sprint)
 
 - **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied.
@@ -260,7 +276,7 @@ accepted with rationale.
 ## Audit Logging
 
 Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics), Sprint 3
-(reports), Sprint 6 (assistant chats), Sprint 7 (nutrition plans), Sprint 8 (workout plans), and
+(reports), Sprint 6 (assistant chats), Sprint 7 (nutrition plans), Sprint 8 (workout plans),
 Sprint 9 (medication reminders), and Sprint 10 (voice preferences). Design principles: append-only by policy (no update/delete flows expose it), event
 classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
 no sensitive payloads (passwords/tokens/metric/report/chat/nutrition/workout/medication data are never written).

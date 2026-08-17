@@ -79,6 +79,10 @@ missing required variables cause the process to **fail fast**.
 > with the Web Speech API, so no new server configuration is required. The only server-side state
 > is the per-user `VoicePreference` row; audio and transcripts never leave the device.
 
+> **Health analytics (Sprint 11).** Health score and analytics are computed on demand from the
+> existing `HealthMetric` rows and need no extra configuration — there are no new environment
+> variables, data models, or external calls.
+
 ### Placeholders for upcoming Sprints
 
 These are documented now for planning; they are consumed by later Sprints:

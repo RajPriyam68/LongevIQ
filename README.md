@@ -4,7 +4,8 @@
 
 LongevIQ is a production-grade, AI-powered healthcare and wellness SaaS platform. Users can manage
 health profiles, upload and understand medical reports, chat with their documents, track health
-metrics, and receive educational nutrition, workout, and medication-reminder guidance.
+metrics, and receive educational nutrition, workout, medication-reminder, and health-analytics
+guidance.
 
 > **Educational and wellness-focused.** LongevIQ never diagnoses diseases, never prescribes
 > treatments, and never replaces a physician. Every AI response includes a medical disclaimer.
@@ -335,6 +336,29 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   (read-aloud master switch, auto-read, speed, pitch, voice) backed by the API.
 - **Tests**: 277 API tests (unit + DB-backed integration) and 69 web tests.
 
+### Sprint 11 — Health Score & Analytics
+
+- **Health score**: a deterministic 0-100 wellness score computed on demand from the user's metric
+  readings. Per-metric sub-scores map the latest reading against standard reference bands (blood
+  pressure systolic, heart rate, glucose, BMI, sleep, steps, body temperature) with piecewise-linear
+  scoring; weight is excluded (no universal healthy range). The overall score is the equal-weighted
+  average of scored components with a qualitative label (Excellent/Good/Fair/Needs attention) and
+  returns *Insufficient data* when nothing is scored.
+- **Analytics**: per-metric statistics over a lookback window (`?days=30`, max 365) — count, min,
+  max, average, latest, previous, delta, trend direction (up/down/stable), status against the
+  recommended range (in/above/below), the reference range itself, and an ascending series for
+  charting.
+- **Insights**: bounded, deterministic rule-based insights — averages outside the recommended range
+  (warning), on-track averages (positive), meaningful trends, and prompts to start or broaden
+  tracking. All output is educational and covered by the medical disclaimer.
+- **API**: under `/api/v1/analytics` — `GET /summary`, `GET /score`, `GET /insights`, all
+  owner-scoped behind auth with zod-validated `days` (1-365). Read-only; nothing is stored or
+  audited, so there is no new data model or migration.
+- **Frontend**: protected `/analytics` page (linked from the header) with a score gauge, a
+  per-metric score-breakdown panel, per-metric analytics cards with a recommended-range bar and
+  sparkline, an insights list, and a 7/30/90-day window switcher.
+- **Tests**: 300 API tests (unit + DB-backed integration) and 72 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -352,7 +376,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 8      | Workout planner **(done)**                               |
 | 9      | Medication reminder **(done)**                        |
 | 10     | Voice assistant **(done)**                             |
-| 11     | Health score & analytics                                     |
+| 11     | Health score & analytics **(done)**                          |
 | 12     | Doctor portal                                                |
 | 13     | Admin dashboard                                              |
 | 14     | Notifications                                                |

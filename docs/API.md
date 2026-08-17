@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 9)
+## Current Endpoints (Sprint 11)
 
 ### Health check
 
@@ -862,6 +862,129 @@ Returns the server-advertised speech engines and control bounds.
 }
 ```
 
+### Analytics
+
+All endpoints require `Authorization: Bearer <accessToken>` and are scoped to the authenticated
+user (there is no cross-user surface). Analytics are computed on demand from the user's
+`HealthMetric` readings with no new data model; output is deterministic and educational.
+
+#### Analytics summary
+
+`GET /api/v1/analytics/summary?days=30`
+
+Returns per-metric statistics for the lookback window. `days` is an integer 1–365 and defaults to
+30; invalid values return `400 VALIDATION_ERROR`.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "windowDays": 30,
+      "generatedAt": "2026-08-17T09:00:00.000Z",
+      "metrics": [
+        {
+          "type": "SLEEP_HOURS",
+          "label": "Sleep",
+          "unit": "hours",
+          "count": 3,
+          "min": 6.5,
+          "max": 8.5,
+          "average": 7.5,
+          "latest": 8.5,
+          "previous": 7.5,
+          "delta": 1,
+          "direction": "up",
+          "status": "normal",
+          "recommendedRange": { "min": 7, "max": 9, "unit": "hours" },
+          "series": [
+            { "recordedAt": "2026-08-15T08:00:00.000Z", "value": 6.5, "valueSecondary": null },
+            { "recordedAt": "2026-08-16T08:00:00.000Z", "value": 7.5, "valueSecondary": null },
+            { "recordedAt": "2026-08-17T08:00:00.000Z", "value": 8.5, "valueSecondary": null }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+- `metrics` always contains all 8 metric types; types with no readings in the window have `count: 0`
+  and an empty `series`.
+- `direction` is `up` / `down` / `stable`; `status` is `normal` / `high` / `low` / `unknown`
+  (derived from the window average against the recommended range).
+- `recommendedRange` is `null` for metrics without a well-established range (e.g. weight); steps use
+  a one-sided minimum (`max: null`, `higherIsBetter: true`).
+
+#### Health score
+
+`GET /api/v1/analytics/score`
+
+Computes the composite 0-100 health score from the user's latest readings mapped against standard
+reference bands. Weight is never scored.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "score": {
+      "overall": 82,
+      "label": "Good",
+      "coverage": { "scored": 5, "total": 7 },
+      "components": [
+        {
+          "type": "SLEEP_HOURS",
+          "label": "Sleep",
+          "unit": "hours",
+          "score": 90,
+          "status": "normal",
+          "weight": 1,
+          "readings": 12
+        }
+      ]
+    }
+  }
+}
+```
+
+- `overall` is the rounded equal-weighted mean of scored components; `null` (with label
+  *Insufficient data*) when no scored metric type has a reading.
+- Labels: `>=85` Excellent, `>=70` Good, `>=50` Fair, otherwise Needs attention.
+
+#### Insights
+
+`GET /api/v1/analytics/insights?days=30`
+
+Returns bounded, deterministic insights for the window (at most 12 items).
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "insights": {
+      "windowDays": 30,
+      "generatedAt": "2026-08-17T09:00:00.000Z",
+      "items": [
+        {
+          "severity": "warning",
+          "title": "Sleep outside recommended range",
+          "message": "Your average sleep (6.4 hours) is below the recommended 7-9 hours range.",
+          "metricType": "SLEEP_HOURS"
+        }
+      ]
+    }
+  }
+}
+```
+
+`severity` is `info` / `warning` / `positive`; `metricType` is present for metric-specific insights.
+
 ### Nutrition planner
 
 All endpoints require `Authorization: Bearer <accessToken>`. The planner is deterministic
@@ -1253,6 +1376,6 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- Voice, analytics, doctor, admin modules (Sprints 10-13)
+- Doctor and admin modules (Sprints 12-13)
 
 Swagger/OpenAPI documentation will be generated alongside the analytics module.

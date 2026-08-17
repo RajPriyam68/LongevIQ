@@ -40,6 +40,7 @@ import type { MedicationRepository } from './modules/medications/medication.repo
 import { PrismaVoiceRepository } from './modules/voice/voice.repository.js';
 import { VoiceService } from './modules/voice/voice.service.js';
 import type { VoiceRepository } from './modules/voice/voice.repository.types.js';
+import { AnalyticsService } from './modules/analytics/analytics.service.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -68,6 +69,7 @@ export interface Container {
   medicationService: MedicationService;
   voiceRepository: VoiceRepository;
   voiceService: VoiceService;
+  analyticsService: AnalyticsService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -156,6 +158,8 @@ export function createContainer(overrides?: Partial<Container>): Container {
   const voiceRepository = overrides?.voiceRepository ?? new PrismaVoiceRepository();
   const voiceService = overrides?.voiceService ?? new VoiceService(voiceRepository, auditSink);
 
+  const analyticsService = overrides?.analyticsService ?? new AnalyticsService(metricsRepository);
+
   return {
     authRepository,
     tokenService,
@@ -183,5 +187,6 @@ export function createContainer(overrides?: Partial<Container>): Container {
     medicationService,
     voiceRepository,
     voiceService,
+    analyticsService,
   };
 }
