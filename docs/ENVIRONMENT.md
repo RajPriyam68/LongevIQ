@@ -75,6 +75,10 @@ missing required variables cause the process to **fail fast**.
 > `DATABASE_URL`. No email/SMS/TOTP delivery is wired up yet — that is planned for the
 > notifications sprint.
 
+> **Voice assistant (Sprint 10).** Speech-to-text and text-to-speech run entirely in the browser
+> with the Web Speech API, so no new server configuration is required. The only server-side state
+> is the per-user `VoicePreference` row; audio and transcripts never leave the device.
+
 ### Placeholders for upcoming Sprints
 
 These are documented now for planning; they are consumed by later Sprints:

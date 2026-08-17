@@ -1,4 +1,9 @@
-import type { ChatResponse, ChatSession, ChatSessionDetail } from '@longeviq/shared';
+import type {
+  ChatResponse,
+  ChatSession,
+  ChatSessionDetail,
+  VoiceInputMethod,
+} from '@longeviq/shared';
 import { apiClient, apiDelete, apiGet } from '@/lib/api-client';
 
 export interface ListChatSessionsResult {
@@ -14,6 +19,7 @@ export interface ListChatSessionsResult {
 export interface SendChatMessageInput {
   sessionId?: string | null;
   message: string;
+  inputMethod?: VoiceInputMethod;
 }
 
 /**

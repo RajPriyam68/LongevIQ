@@ -691,10 +691,11 @@ notice instead of failing.
 
 `POST /api/v1/assistant/chat`
 
-| Field       | Type    | Required | Notes                                            |
-| ----------- | ------- | -------- | ------------------------------------------------ |
-| `message`   | string  | yes      | User message (1–4000 chars)                      |
-| `sessionId` | string  | no       | Omit to start a new conversation                 |
+| Field         | Type    | Required | Notes                                             |
+| ------------- | ------- | -------- | ------------------------------------------------- |
+| `message`     | string  | yes      | User message (1–4000 chars)                       |
+| `sessionId`   | string  | no       | Omit to start a new conversation                  |
+| `inputMethod` | enum    | no       | `TEXT` or `VOICE` (recorded in audit metadata only) |
 
 Sessions are owned by the authenticated user; a `sessionId` that does not belong to the caller
 returns `404`. Chat is rate-limited per user (default 30 messages/minute).
@@ -789,6 +790,77 @@ messages in chronological order. Sessions owned by other users return `404`.
 `DELETE /api/v1/assistant/sessions/:id`
 
 **Response 200**: `{ "success": true, "data": { "deleted": true } }`
+
+### Voice assistant
+
+All endpoints require `Authorization: Bearer <accessToken>`. The voice assistant layer adds
+speech-to-text and text-to-speech around the AI chat. Speech itself runs in the browser with the
+Web Speech API, so the API only persists per-user preferences (never audio or transcripts) and
+advertises the speech capabilities so the UI can clamp its controls.
+
+#### Get voice preferences
+
+`GET /api/v1/voice/preferences`
+
+Returns the authenticated user's preferences, or the platform defaults when no row exists.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "preferences": {
+      "readAloud": true,
+      "autoListen": false,
+      "speechRate": 1,
+      "speechPitch": 1,
+      "voiceLocale": null
+    }
+  }
+}
+```
+
+#### Update voice preferences
+
+`PUT /api/v1/voice/preferences`
+
+Partial upsert: only the fields provided are changed; unspecified fields keep their current (or
+default) value.
+
+| Field         | Type    | Required | Notes                          |
+| ------------- | ------- | -------- | ------------------------------ |
+| `readAloud`   | boolean | no       | Show read-aloud controls       |
+| `autoListen`  | boolean | no       | Read new replies automatically |
+| `speechRate`  | number  | no       | 0.5–2                          |
+| `speechPitch` | number  | no       | 0–2                            |
+| `voiceLocale` | string  | no       | BCP-47 tag or `null` (default) |
+
+**Response 200**: the same shape as `GET /voice/preferences` with the merged result. Updates are
+audited as `DATA.VOICE_PREFERENCE_UPDATE`.
+
+#### Get speech capabilities
+
+`GET /api/v1/voice/config`
+
+Returns the server-advertised speech engines and control bounds.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "capabilities": {
+      "sttEngine": "BROWSER_SPEECH_RECOGNITION",
+      "ttsEngine": "BROWSER_SPEECH_SYNTHESIS",
+      "speechRate": { "min": 0.5, "max": 2 },
+      "speechPitch": { "min": 0, "max": 2 },
+      "maxSpeechChunkChars": 240
+    }
+  }
+}
+```
 
 ### Nutrition planner
 

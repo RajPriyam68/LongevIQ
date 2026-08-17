@@ -136,6 +136,25 @@ describe('AssistantService.chat', () => {
     const result = await service.chat(USER, { message: long });
     expect(result.session.title.length).toBeLessThanOrEqual(50);
   });
+
+  it('attributes voice-dictated messages in the audit metadata', async () => {
+    const { repository, service } = makeService({});
+    await service.chat(USER, { message: 'Read my glucose levels', inputMethod: 'VOICE' });
+
+    const chatAudit = repository.auditCalls.find((entry) => entry.action === 'DATA.ASSISTANT_CHAT');
+    expect(chatAudit).toBeDefined();
+    const metadata = chatAudit?.metadata as { inputMethod?: string };
+    expect(metadata.inputMethod).toBe('VOICE');
+  });
+
+  it('defaults the audit input method to TEXT when not provided', async () => {
+    const { repository, service } = makeService({});
+    await service.chat(USER, { message: 'A typed question' });
+
+    const chatAudit = repository.auditCalls.find((entry) => entry.action === 'DATA.ASSISTANT_CHAT');
+    const metadata = chatAudit?.metadata as { inputMethod?: string };
+    expect(metadata.inputMethod).toBe('TEXT');
+  });
 });
 
 describe('AssistantService sessions', () => {

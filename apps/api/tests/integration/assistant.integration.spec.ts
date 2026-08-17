@@ -106,6 +106,31 @@ describeIntegration('Assistant API (integration)', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
+  it('rejects an unknown input method', async () => {
+    const res = await request(app)
+      .post(`${base}/assistant/chat`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ message: 'Hi', inputMethod: 'GESTURE' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('accepts a voice-dictated message and audits the input method', async () => {
+    const res = await request(app)
+      .post(`${base}/assistant/chat`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({ message: 'What is a normal fasting glucose?', inputMethod: 'VOICE' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.session.messages).toHaveLength(2);
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { action: 'DATA.ASSISTANT_CHAT', entityId: res.body.data.session.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit?.metadata).toMatchObject({ inputMethod: 'VOICE' });
+  });
+
   it('answers a question with retrieval sources and persists both messages', async () => {
     const res = await request(app)
       .post(`${base}/assistant/chat`)

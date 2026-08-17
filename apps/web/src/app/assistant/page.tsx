@@ -5,10 +5,18 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, MessageSquarePlus, Send, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { ChatMessage, ChatMessageSource, ChatSession } from '@longeviq/shared';
-import { MEDICAL_DISCLAIMER } from '@longeviq/shared';
+import type {
+  ChatMessage,
+  ChatMessageSource,
+  ChatSession,
+  VoiceInputMethod,
+} from '@longeviq/shared';
+import { MEDICAL_DISCLAIMER, VOICE_PREFERENCES_DEFAULTS } from '@longeviq/shared';
 import { RequireAuth } from '@/components/auth/require-auth';
 import { Button } from '@/components/ui/button';
+import { ReadAloudButton } from '@/components/assistant/read-aloud-button';
+import { VoiceInputButton } from '@/components/assistant/voice-input-button';
+import { VoiceSettings } from '@/components/assistant/voice-settings';
 import {
   apiDeleteChatSession,
   apiGetChatSession,
@@ -17,6 +25,8 @@ import {
 } from '@/lib/assistant-api';
 import { formatAssistantTime, splitIntoParagraphs } from '@/lib/assistant-format';
 import { isApiClientError } from '@/lib/api-client';
+import { speak } from '@/lib/speech';
+import { useVoicePreferences } from '@/lib/voice-hooks';
 
 const SUGGESTIONS = [
   'What does my blood pressure reading mean?',
@@ -59,7 +69,14 @@ function AssistantSources({ sources }: { sources: ChatMessageSource[] }) {
   );
 }
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+interface VoiceBubbleProps {
+  enabled: boolean;
+  rate: number;
+  pitch: number;
+  locale: string | null;
+}
+
+function MessageBubble({ message, voice }: { message: ChatMessage; voice?: VoiceBubbleProps }) {
   const isUser = message.role === 'USER';
   if (isUser) {
     return (
@@ -87,8 +104,17 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               Notice
             </span>
           ) : null}
-          <span className="ml-auto text-[10px] tabular-nums">
-            {formatAssistantTime(message.createdAt)}
+          <span className="ml-auto flex items-center gap-2">
+            <ReadAloudButton
+              text={message.content}
+              enabled={voice?.enabled}
+              rate={voice?.rate}
+              pitch={voice?.pitch}
+              locale={voice?.locale}
+            />
+            <span className="text-[10px] tabular-nums">
+              {formatAssistantTime(message.createdAt)}
+            </span>
           </span>
         </div>
         <div className="space-y-2 text-sm leading-relaxed">
@@ -132,6 +158,15 @@ export default function AssistantPage() {
   const [sending, setSending] = React.useState(false);
   const bottomRef = React.useRef<HTMLDivElement>(null);
 
+  const voicePrefsQuery = useVoicePreferences();
+  const voicePrefs = voicePrefsQuery.data?.preferences ?? VOICE_PREFERENCES_DEFAULTS;
+  const voiceBubbleProps = {
+    enabled: voicePrefs.readAloud,
+    rate: voicePrefs.speechRate,
+    pitch: voicePrefs.speechPitch,
+    locale: voicePrefs.voiceLocale,
+  };
+
   const sessionsQuery = useQuery({
     queryKey: ['assistant-sessions'],
     queryFn: () => apiListChatSessions(),
@@ -170,7 +205,7 @@ export default function AssistantPage() {
     setInput('');
   };
 
-  const handleSend = async (content?: string) => {
+  const handleSend = async (content?: string, inputMethod: VoiceInputMethod = 'TEXT') => {
     const text = (content ?? input).trim();
     if (!text || sending) return;
     setInput('');
@@ -188,10 +223,25 @@ export default function AssistantPage() {
     setMessages((current) => [...current, optimistic]);
 
     try {
-      const result = await apiSendChatMessage({ sessionId: activeSessionId, message: text });
+      const result = await apiSendChatMessage({
+        sessionId: activeSessionId,
+        message: text,
+        inputMethod,
+      });
       setActiveSessionId(result.session.id);
       setMessages(result.session.messages);
       await sessionsQuery.refetch();
+
+      const lastAssistant = [...result.session.messages]
+        .reverse()
+        .find((message) => message.role === 'ASSISTANT');
+      if (voicePrefs.autoListen && lastAssistant) {
+        speak(lastAssistant.content, {
+          rate: voicePrefs.speechRate,
+          pitch: voicePrefs.speechPitch,
+          locale: voicePrefs.voiceLocale,
+        });
+      }
     } catch (error) {
       toast.error(
         isApiClientError(error)
@@ -202,6 +252,13 @@ export default function AssistantPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleVoiceTranscript = (transcript: string) => {
+    const text = transcript.trim();
+    if (!text) return;
+    setInput(text);
+    void handleSend(text, 'VOICE');
   };
 
   const handleDeleteSession = async (session: ChatSession) => {
@@ -269,19 +326,22 @@ export default function AssistantPage() {
 
         <section className="flex min-w-0 flex-1 flex-col rounded-xl border bg-card">
           <header className="border-b px-5 py-3">
-            <div className="flex items-center gap-2">
-              <span
-                className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-                aria-hidden="true"
-              >
-                <Sparkles className="size-4" />
-              </span>
-              <div>
-                <h1 className="text-base font-semibold">AI Health Assistant</h1>
-                <p className="text-xs text-muted-foreground">
-                  Ask about metrics, labs, nutrition, and everyday wellness.
-                </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+                  aria-hidden="true"
+                >
+                  <Sparkles className="size-4" />
+                </span>
+                <div>
+                  <h1 className="text-base font-semibold">AI Health Assistant</h1>
+                  <p className="text-xs text-muted-foreground">
+                    Ask about metrics, labs, nutrition, and everyday wellness.
+                  </p>
+                </div>
               </div>
+              <VoiceSettings />
             </div>
           </header>
 
@@ -321,7 +381,7 @@ export default function AssistantPage() {
             ) : (
               <>
                 {messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
+                  <MessageBubble key={message.id} message={message} voice={voiceBubbleProps} />
                 ))}
                 {sending ? <TypingIndicator /> : null}
               </>
@@ -351,15 +411,22 @@ export default function AssistantPage() {
                 aria-label="Message the AI health assistant"
                 className="min-h-24 flex-1 resize-none rounded-lg border bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
-              <Button
-                type="submit"
-                disabled={input.trim().length === 0 || sending}
-                aria-label="Send message"
-                className="gap-2"
-              >
-                <Send className="size-4" aria-hidden="true" />
-                Send
-              </Button>
+              <div className="flex items-center gap-2">
+                <VoiceInputButton
+                  onTranscript={handleVoiceTranscript}
+                  onError={() => toast.error('Voice input is unavailable right now.')}
+                  disabled={sending}
+                />
+                <Button
+                  type="submit"
+                  disabled={input.trim().length === 0 || sending}
+                  aria-label="Send message"
+                  className="gap-2"
+                >
+                  <Send className="size-4" aria-hidden="true" />
+                  Send
+                </Button>
+              </div>
             </form>
             <p className="mt-2 text-center text-[11px] text-muted-foreground">
               {MEDICAL_DISCLAIMER}

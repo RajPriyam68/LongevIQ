@@ -37,6 +37,9 @@ import type { WorkoutRepository } from './modules/workout/workout.repository.typ
 import { PrismaMedicationRepository } from './modules/medications/medication.repository.js';
 import { MedicationService } from './modules/medications/medication.service.js';
 import type { MedicationRepository } from './modules/medications/medication.repository.types.js';
+import { PrismaVoiceRepository } from './modules/voice/voice.repository.js';
+import { VoiceService } from './modules/voice/voice.service.js';
+import type { VoiceRepository } from './modules/voice/voice.repository.types.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -63,6 +66,8 @@ export interface Container {
   workoutService: WorkoutService;
   medicationRepository: MedicationRepository;
   medicationService: MedicationService;
+  voiceRepository: VoiceRepository;
+  voiceService: VoiceService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -148,6 +153,9 @@ export function createContainer(overrides?: Partial<Container>): Container {
   const medicationService =
     overrides?.medicationService ?? new MedicationService(medicationRepository, auditSink);
 
+  const voiceRepository = overrides?.voiceRepository ?? new PrismaVoiceRepository();
+  const voiceService = overrides?.voiceService ?? new VoiceService(voiceRepository, auditSink);
+
   return {
     authRepository,
     tokenService,
@@ -173,5 +181,7 @@ export function createContainer(overrides?: Partial<Container>): Container {
     workoutService,
     medicationRepository,
     medicationService,
+    voiceRepository,
+    voiceService,
   };
 }

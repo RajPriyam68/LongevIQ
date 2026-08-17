@@ -8,6 +8,7 @@ import type {
   ChatSessionDetail,
   KnowledgeSearchResult,
   PaginatedResponse,
+  VoiceInputMethod,
 } from '@longeviq/shared';
 import { AppError } from '../../utils/app-error.js';
 import type { AuditSink } from '../metrics/metrics.repository.types.js';
@@ -55,7 +56,7 @@ export class AssistantService {
 
   async chat(
     userId: string,
-    input: { message: string; sessionId?: string | null },
+    input: { message: string; sessionId?: string | null; inputMethod?: VoiceInputMethod },
     ctx: RequestContext = {},
   ): Promise<ChatResponse> {
     const session = await this.resolveSession(userId, input.sessionId ?? null, input.message);
@@ -134,6 +135,7 @@ export class AssistantService {
         providerConfigured,
         sources: sources?.length ?? 0,
         messageLength: content.length,
+        inputMethod: input.inputMethod ?? 'TEXT',
       },
     });
 

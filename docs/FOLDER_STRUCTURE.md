@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 9)
+## Current Structure (Sprint 10)
 
 ```
 .
@@ -22,8 +22,8 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── package.json
 │   │   ├── prisma/
 │   │   │   ├── .env.example           # DATABASE_URL template
-│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric, MedicalReport, KnowledgeDocument, KnowledgeChunk, NutritionPlan, WorkoutPlan, Medication, MedicationAdherence
-│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics, add_medical_reports, add_report_findings, add_knowledge_base, add_ai_assistant, add_nutrition_plans, add_workout_plans, add_medication_reminders
+│   │   │   ├── schema.prisma          # User, RefreshToken, EmailVerificationToken, AuditLog, HealthMetric, MedicalReport, KnowledgeDocument, KnowledgeChunk, NutritionPlan, WorkoutPlan, Medication, MedicationAdherence, VoicePreference
+│   │   │   ├── migrations/            # add_auth_and_audit, add_health_metrics, add_medical_reports, add_report_findings, add_knowledge_base, add_ai_assistant, add_nutrition_plans, add_workout_plans, add_medication_reminders, add_voice_preferences
 │   │   │   └── seed.ts                # Demo users (admin/doctor/user)
 │   │   │   └── seed-knowledge.ts      # 13 curated knowledge articles (kb:seed)
 │   │   ├── src/
@@ -108,6 +108,12 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── medication.repository.types.ts
 │   │   │   │   │   ├── medication.routes.ts          # CRUD + /schedule + /:id/adherence
 │   │   │   │   │   └── medication.service.ts         # daily schedule + adherence + audit
+│   │   │   │   ├── voice/             # Voice assistant (Sprint 10)
+│   │   │   │   │   ├── voice.controller.ts           # GET/PUT preferences + capabilities
+│   │   │   │   │   ├── voice.repository.ts           # Prisma voice preferences
+│   │   │   │   │   ├── voice.repository.types.ts
+│   │   │   │   │   ├── voice.routes.ts               # /preferences + /config
+│   │   │   │   │   └── voice.service.ts              # defaults + partial upsert + audit
 │   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
@@ -147,7 +153,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
 │   │   │   ├── assistant.service.spec.ts  # Assistant unit tests (fake LLM + repository)
-│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge + LLM + assistant
+│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge + LLM + assistant + voice
 │   │   │   ├── health.spec.ts         # API tests (supertest)
 │   │   │   ├── knowledge-chunker.spec.ts  # Markdown chunker unit tests
 │   │   │   ├── knowledge.service.spec.ts  # Knowledge service unit tests
@@ -155,6 +161,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── metrics.service.spec.ts# Metrics + dashboard unit tests
 │   │   │   ├── nutrition-planner.spec.ts  # Target math + meal composition unit tests
 │   │   │   ├── nutrition.service.spec.ts  # Nutrition service unit tests
+│   │   │   ├── voice.service.spec.ts      # Voice preference service unit tests
 │   │   │   ├── workout-planner.spec.ts    # Target math + weekly composition unit tests
 │   │   │   ├── workout.service.spec.ts    # Workout service unit tests
 │   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
@@ -168,6 +175,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   ├── metrics.integration.spec.ts # DB-backed metrics/dashboard tests
 │   │   │   │   ├── nutrition.integration.spec.ts # DB-backed plan create/list/get/delete tests
 │   │   │   │   ├── workout.integration.spec.ts # DB-backed plan create/list/get/delete tests
+│   │   │   │   ├── voice.integration.spec.ts # DB-backed voice preference tests
 │   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
 │   │   ├── assets/                    # Vendored OCR assets (committed)
@@ -205,8 +213,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── knowledge/
 │       │   │   │   ├── [id]/page.tsx  # Article detail (protected)
 │       │   │   │   └── page.tsx       # Search + browse knowledge base (protected)
-│       │   │   ├── assistant/
-│       │   │   │   └── page.tsx       # AI health assistant chat (protected)
+│   │   │   ├── assistant/
+│   │   │   │   └── page.tsx       # AI health assistant chat (protected)
 │       │   │   ├── nutrition/
 │       │   │   │   └── page.tsx       # Nutrition planner builder + plan view (protected)
 │       │   │   ├── workout/
@@ -218,6 +226,10 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │       └── page.tsx       # Report list + upload (protected)
 │       │   ├── components/
 │       │   │   ├── api-status.tsx     # Server component -> /api/v1/health
+│       │   │   ├── assistant/         # Sprint 10 voice UI
+│       │   │   │   ├── read-aloud-button.tsx  # TTS button for assistant replies
+│       │   │   │   ├── voice-input-button.tsx # STT microphone button
+│       │   │   │   └── voice-settings.tsx     # read-aloud/auto-read/rate/pitch/voice panel
 │       │   │   ├── auth/
 │       │   │   │   ├── guest-only.tsx
 │       │   │   │   └── require-auth.tsx
@@ -262,6 +274,10 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── assistant-api.ts   # Typed chat + session list/get/delete endpoints
 │       │   │   ├── assistant-format.ts # Paragraph splitting + 24h time formatting
 │       │   │   ├── assistant-format.spec.ts
+│       │   │   ├── speech.ts          # Web Speech API wrappers + chunking helpers (Sprint 10)
+│       │   │   ├── speech.spec.ts
+│       │   │   ├── voice-api.ts       # Typed voice preferences/config endpoints
+│       │   │   ├── voice-hooks.ts     # react-query hooks + speaking-state subscription
 │       │   │   ├── nutrition-api.ts   # Typed plan create/list/get/delete endpoints
 │       │   │   ├── nutrition-format.ts # Labels + calorie/macro/date formatting
 │       │   │   ├── nutrition-format.spec.ts
@@ -314,6 +330,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/nutrition.ts     # NutritionGoal/ActivityLevel/MealType, plan + meal types
 │       │   ├── types/workout.ts       # WorkoutGoal/FitnessLevel/Equipment/DayFocus, plan/day/exercise types
 │       │   ├── types/medication.ts    # MedicationForm/AdherenceStatus, medication + schedule + dose types
+│       │   ├── types/voice.ts         # VoiceInputMethod, VoicePreferences, VoiceCapabilities + bounds
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/nutrition.ts # createNutritionPlan + listNutritionPlansQuery schemas
@@ -321,6 +338,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── validators/medication.ts # create/update/list/schedule/setDoseStatus schemas
 │       │   ├── validators/knowledge.ts # create/update/search/list schemas + inferred types
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
+│       │   ├── validators/voice.ts     # updateVoicePreferencesSchema
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
 │       │   ├── validators/reports.ts  # createReportMetadata/updateReport/listReportsQuery schemas
 │       │   └── index.ts

@@ -230,10 +230,30 @@ accepted with rationale.
   count, and dose status — never medication names, dosages, instructions, notes, or dates.
   Reminder guidance is educational and the UI shows the standard disclaimer next to the schedule.
 
+## Voice Assistant Threat Model (Sprint 10)
+
+- **No audio or transcript egress**: speech-to-text and text-to-speech run entirely in the browser
+  via the Web Speech API. Microphone audio and dictated transcripts never leave the device, and no
+  third-party speech provider is introduced — there is no new external network surface.
+- **Minimal retention**: the only server-side state is the per-user `VoicePreference` row (read
+  aloud, auto-listen, rate, pitch, voice locale). No audio samples or transcript text are ever
+  stored, and a preference row carries no health data.
+- **Tenant isolation**: preferences are keyed by the authenticated user id (`userId` is the primary
+  key with cascade delete), so there is no cross-user read or write surface.
+- **Input bounds**: shared zod validates `speechRate` (0.5–2) and `speechPitch` (0–2) and caps
+  `voiceLocale` at 100 characters before the service persists anything; the web UI clamps sliders
+  to the server-advertised bounds from `GET /voice/config`.
+- **Chat attribution without content**: the chat endpoint accepts an optional `inputMethod`
+  (`TEXT` | `VOICE`) that is recorded in `DATA.ASSISTANT_CHAT` metadata — never message content —
+  so voice-dictated conversations are attributable without broadening what is logged.
+- **No secrets in audit or logs**: `DATA.VOICE_PREFERENCE_UPDATE` records only preference summary
+  metadata (booleans, rate, pitch, locale); speech and chat text are never written to audit
+  entries or structured logs.
+
 ## Upcoming Controls (per Sprint)
 
-- **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied; time-based
-  one-time tokens for medication reminders (Sprint 10+).
+- **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied.
+- **Sprint 14**: time-based one-time tokens for medication reminders, notifications.
 - **Sprint 13**: admin audit log reader, role escalation guardrails.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.
 
@@ -241,7 +261,7 @@ accepted with rationale.
 
 Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metrics), Sprint 3
 (reports), Sprint 6 (assistant chats), Sprint 7 (nutrition plans), Sprint 8 (workout plans), and
-Sprint 9 (medication reminders). Design principles: append-only by policy (no update/delete flows expose it), event
+Sprint 9 (medication reminders), and Sprint 10 (voice preferences). Design principles: append-only by policy (no update/delete flows expose it), event
 classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
 no sensitive payloads (passwords/tokens/metric/report/chat/nutrition/workout/medication data are never written).
 

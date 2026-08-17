@@ -17,6 +17,11 @@ import type {
   MedicationAdherenceStatus,
   MedicationForm,
 } from '../src/modules/medications/medication.repository.types.js';
+import type {
+  UpsertVoicePreferenceInput,
+  VoicePreferenceRecord,
+  VoiceRepository,
+} from '../src/modules/voice/voice.repository.types.js';
 
 let seq = 0;
 let nowOffset = 0;
@@ -692,8 +697,12 @@ export class FakeLlmClient {
 export class FakeAssistantRepository {
   sessions = new Map<string, ChatSessionRecord>();
   messages = new Map<string, ChatMessageRecord>();
-  auditCalls: Array<{ action: string; entityId?: string | null; userId?: string | null }> = [];
-
+  auditCalls: Array<{
+    action: string;
+    entityId?: string | null;
+    userId?: string | null;
+    metadata?: unknown;
+  }> = [];
   async createSession(input: { userId: string; title: string }): Promise<ChatSessionRecord> {
     const now = nextDate();
     const session: ChatSessionRecord = {
@@ -777,9 +786,34 @@ export class FakeAssistantRepository {
     }
   }
 
-  recordAudit(input: { action: string; entityId?: string | null; userId?: string | null }) {
+  recordAudit(input: {
+    action: string;
+    entityId?: string | null;
+    userId?: string | null;
+    metadata?: unknown;
+  }) {
     this.auditCalls.push(input);
     return Promise.resolve();
+  }
+}
+
+export class FakeVoiceRepository implements VoiceRepository {
+  rows = new Map<string, VoicePreferenceRecord>();
+
+  async findByUserId(userId: string): Promise<VoicePreferenceRecord | null> {
+    return this.rows.get(userId) ?? null;
+  }
+
+  async upsert(userId: string, data: UpsertVoicePreferenceInput): Promise<VoicePreferenceRecord> {
+    const now = nextDate();
+    const row: VoicePreferenceRecord = {
+      userId,
+      ...data,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.rows.set(userId, row);
+    return row;
   }
 }
 

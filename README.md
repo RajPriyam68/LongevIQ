@@ -314,6 +314,27 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   daily schedule with previous/today/next navigation and per-dose take/skip toggles.
 - **Tests**: 258 API tests (unit + DB-backed integration) and 53 web tests.
 
+### Sprint 10 — Voice Assistant
+
+- **Hands-free chat**: the AI assistant gains speech-to-text and text-to-speech. A microphone
+  button on the chat composer dictates questions with the browser Web Speech Recognition API, and
+  every assistant reply has a read-aloud button powered by the Web Speech Synthesis API. Speech
+  runs entirely in the browser — no audio or transcripts ever leave the device, and no new
+  third-party API is introduced.
+- **API**: under `/api/v1/voice` — `GET /preferences`, `PUT /preferences` (partial upsert with zod
+  bounds: rate 0.5–2, pitch 0–2), and `GET /config` (advertises the browser speech engines and
+  control bounds). Preferences are owner-scoped; there is no cross-user surface.
+- **Audit attribution**: chat accepts an optional `inputMethod` (`TEXT` | `VOICE`) that is recorded
+  in the `DATA.ASSISTANT_CHAT` audit metadata (never message content); preference changes are
+  audited as `DATA.VOICE_PREFERENCE_UPDATE` with preference summary only.
+- **Data model**: `VoicePreference` (userId PK, readAloud, autoListen, speechRate, speechPitch,
+  voiceLocale) — migration `20260815171421_add_voice_preferences`. Only preferences are persisted;
+  audio content is never stored.
+- **Frontend**: the `/assistant` page gains a mic button (live transcription + auto-send), a
+  read-aloud button on each assistant reply, an auto-read toggle, and a voice-settings panel
+  (read-aloud master switch, auto-read, speed, pitch, voice) backed by the API.
+- **Tests**: 277 API tests (unit + DB-backed integration) and 69 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -330,7 +351,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 7      | Nutrition planner **(done)**                              |
 | 8      | Workout planner **(done)**                               |
 | 9      | Medication reminder **(done)**                        |
-| 10     | Voice assistant                                              |
+| 10     | Voice assistant **(done)**                             |
 | 11     | Health score & analytics                                     |
 | 12     | Doctor portal                                                |
 | 13     | Admin dashboard                                              |
