@@ -22,6 +22,14 @@ import type {
   VoicePreferenceRecord,
   VoiceRepository,
 } from '../src/modules/voice/voice.repository.types.js';
+import type {
+  CareConnectionRecord,
+  CareGrantRecord,
+  CareRepository,
+  CreateGrantInput,
+  DoctorConnectionRecord,
+  UserRef,
+} from '../src/modules/care/care.repository.types.js';
 
 let seq = 0;
 let nowOffset = 0;
@@ -1351,4 +1359,98 @@ export class FakeMedicationRepository {
 
 function startOfUtcDay(value: Date): Date {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+}
+
+export class FakeCareRepository implements CareRepository {
+  grants = new Map<string, CareGrantRecord>();
+  connections = new Map<string, CareConnectionRecord>();
+  users = new Map<string, UserRef>();
+
+  async createGrant(input: CreateGrantInput): Promise<CareGrantRecord> {
+    const now = new Date();
+    const grant: CareGrantRecord = {
+      id: nextId('grt'),
+      patientId: input.patientId,
+      codeHash: input.codeHash,
+      expiresAt: input.expiresAt,
+      usedAt: null,
+      createdAt: now,
+    };
+    this.grants.set(grant.id, grant);
+    return grant;
+  }
+
+  async findGrantByCodeHash(codeHash: string): Promise<CareGrantRecord | null> {
+    for (const grant of this.grants.values()) {
+      if (grant.codeHash === codeHash) return grant;
+    }
+    return null;
+  }
+
+  async consumeGrant(id: string): Promise<void> {
+    const grant = this.grants.get(id);
+    if (grant) grant.usedAt = new Date();
+  }
+
+  async listConnectionsByPatient(patientId: string): Promise<CareConnectionRecord[]> {
+    return [...this.connections.values()]
+      .filter((connection) => connection.patientId === patientId && connection.revokedAt === null)
+      .sort((a, b) => b.connectedAt.getTime() - a.connectedAt.getTime())
+      .map((connection) => ({
+        ...connection,
+        doctor: this.users.get(connection.doctorId) ?? null,
+      }));
+  }
+
+  async listActiveConnectionsByDoctor(doctorId: string): Promise<DoctorConnectionRecord[]> {
+    return [...this.connections.values()]
+      .filter((connection) => connection.doctorId === doctorId && connection.revokedAt === null)
+      .sort((a, b) => b.connectedAt.getTime() - a.connectedAt.getTime())
+      .map((connection) => ({
+        ...connection,
+        patient: this.users.get(connection.patientId) ?? null,
+      }));
+  }
+
+  async findActiveConnection(
+    doctorId: string,
+    patientId: string,
+  ): Promise<CareConnectionRecord | null> {
+    for (const connection of this.connections.values()) {
+      if (
+        connection.doctorId === doctorId &&
+        connection.patientId === patientId &&
+        connection.revokedAt === null
+      ) {
+        return connection;
+      }
+    }
+    return null;
+  }
+
+  async findConnectionById(id: string): Promise<CareConnectionRecord | null> {
+    return this.connections.get(id) ?? null;
+  }
+
+  async createConnection(doctorId: string, patientId: string): Promise<CareConnectionRecord> {
+    const connection: CareConnectionRecord = {
+      id: nextId('conn'),
+      doctorId,
+      patientId,
+      connectedAt: new Date(),
+      revokedAt: null,
+      revokedById: null,
+      doctor: this.users.get(doctorId) ?? null,
+    };
+    this.connections.set(connection.id, connection);
+    return connection;
+  }
+
+  async revokeConnection(id: string, revokedById: string): Promise<void> {
+    const connection = this.connections.get(id);
+    if (connection) {
+      connection.revokedAt = new Date();
+      connection.revokedById = revokedById;
+    }
+  }
 }

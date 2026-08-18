@@ -81,6 +81,22 @@ export interface ReportListResult {
   };
 }
 
+// Sprint 12: doctor portal report view — metadata plus parsed findings, with
+// neither the raw file reference nor the full parsed text exposed.
+export interface DoctorReport extends MedicalReport {
+  findings: ReportFinding[];
+}
+
+export interface DoctorReportListResult {
+  items: DoctorReport[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export interface ReportDownload {
   fileName: string;
   mimeType: string;

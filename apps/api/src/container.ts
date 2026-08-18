@@ -41,6 +41,10 @@ import { PrismaVoiceRepository } from './modules/voice/voice.repository.js';
 import { VoiceService } from './modules/voice/voice.service.js';
 import type { VoiceRepository } from './modules/voice/voice.repository.types.js';
 import { AnalyticsService } from './modules/analytics/analytics.service.js';
+import { PrismaCareRepository } from './modules/care/care.repository.js';
+import { CareService } from './modules/care/care.service.js';
+import type { CareRepository } from './modules/care/care.repository.types.js';
+import { DoctorService } from './modules/doctor/doctor.service.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -70,6 +74,9 @@ export interface Container {
   voiceRepository: VoiceRepository;
   voiceService: VoiceService;
   analyticsService: AnalyticsService;
+  careRepository: CareRepository;
+  careService: CareService;
+  doctorService: DoctorService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -160,6 +167,20 @@ export function createContainer(overrides?: Partial<Container>): Container {
 
   const analyticsService = overrides?.analyticsService ?? new AnalyticsService(metricsRepository);
 
+  const careRepository = overrides?.careRepository ?? new PrismaCareRepository();
+  const careService = overrides?.careService ?? new CareService(careRepository, auditSink);
+  const doctorService =
+    overrides?.doctorService ??
+    new DoctorService(
+      careRepository,
+      authRepository,
+      dashboardService,
+      metricsService,
+      reportsService,
+      analyticsService,
+      auditSink,
+    );
+
   return {
     authRepository,
     tokenService,
@@ -188,5 +209,8 @@ export function createContainer(overrides?: Partial<Container>): Container {
     voiceRepository,
     voiceService,
     analyticsService,
+    careRepository,
+    careService,
+    doctorService,
   };
 }

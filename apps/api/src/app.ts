@@ -8,7 +8,8 @@ import { env } from './config/env.js';
 import { logger } from './utils/logger.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { notFoundHandler } from './middleware/not-found.js';
-import { requireAuth } from './middleware/auth.js';
+import { requireAuth, requireRoles } from './middleware/auth.js';
+import { UserRole } from '@longeviq/shared';
 import { createContainer, type Container } from './container.js';
 import healthRoutes from './modules/health/health.routes.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
@@ -23,6 +24,8 @@ import { createWorkoutRouter } from './modules/workout/workout.routes.js';
 import { createMedicationRouter } from './modules/medications/medication.routes.js';
 import { createVoiceRouter } from './modules/voice/voice.routes.js';
 import { createAnalyticsRouter } from './modules/analytics/analytics.routes.js';
+import { createCareRouter } from './modules/care/care.routes.js';
+import { createDoctorRouter } from './modules/doctor/doctor.routes.js';
 
 export interface AppOptions {
   container?: Partial<Container>;
@@ -130,6 +133,17 @@ export function createApp(options: AppOptions = {}): Express {
     '/analytics',
     requireAuth(container.tokenService),
     createAnalyticsRouter(container.analyticsService),
+  );
+  apiRouter.use(
+    '/care',
+    requireAuth(container.tokenService),
+    createCareRouter(container.careService),
+  );
+  apiRouter.use(
+    '/doctor',
+    requireAuth(container.tokenService),
+    requireRoles(UserRole.DOCTOR),
+    createDoctorRouter(container.doctorService),
   );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);

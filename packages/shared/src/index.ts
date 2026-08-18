@@ -1,7 +1,9 @@
 export * from './constants/app.js';
+export * from './constants/care.js';
 export * from './types/analytics.js';
 export * from './types/api.js';
 export * from './types/assistant.js';
+export * from './types/care.js';
 export * from './types/enums.js';
 export * from './types/knowledge.js';
 export * from './types/medication.js';
@@ -14,6 +16,7 @@ export * from './types/voice.js';
 export * from './validators/analytics.js';
 export * from './validators/assistant.js';
 export * from './validators/auth.js';
+export * from './validators/care.js';
 export * from './validators/knowledge.js';
 export * from './validators/medication.js';
 export * from './validators/metrics.js';

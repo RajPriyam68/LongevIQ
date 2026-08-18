@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Activity, LogOut, Menu, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { APP_NAME, APP_TAGLINE } from '@longeviq/shared';
+import { APP_NAME, APP_TAGLINE, UserRole } from '@longeviq/shared';
 import { apiLogout } from '@/lib/auth-api';
 import { useAuthStore } from '@/lib/auth-store';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,11 @@ function AuthButtons({ compact = false }: { compact?: boolean }) {
         <Button asChild variant="ghost" className="gap-2">
           <Link href="/assistant">Assistant</Link>
         </Button>
+        {user.role === UserRole.DOCTOR ? (
+          <Button asChild variant="ghost" className="gap-2">
+            <Link href="/doctor">Doctor</Link>
+          </Button>
+        ) : null}
         <Button asChild variant="ghost" className="gap-2">
           <Link href="/account">
             <span className="flex size-6 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">

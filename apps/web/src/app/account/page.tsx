@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Loader2, LogOut, ShieldCheck } from 'lucide-react';
 import {
+  UserRole,
   changePasswordSchema,
   updateProfileSchema,
   type ChangePasswordInput,
@@ -16,6 +17,7 @@ import { apiChangePassword, apiLogout, apiUpdateProfile } from '@/lib/auth-api';
 import { useAuthStore } from '@/lib/auth-store';
 import { isApiClientError } from '@/lib/api-client';
 import { RequireAuth } from '@/components/auth/require-auth';
+import { CareShareCard } from '@/components/care/care-share-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -224,6 +226,8 @@ export default function AccountPage() {
         </Card>
 
         <Separator />
+
+        {user.role === UserRole.USER ? <CareShareCard /> : null}
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <ShieldCheck className="size-4" aria-hidden="true" />

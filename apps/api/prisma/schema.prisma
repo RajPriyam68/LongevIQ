@@ -176,6 +176,9 @@ model User {
   workoutPlans            WorkoutPlan[]
   medications             Medication[]
   voicePreference         VoicePreference?
+  patientAccessGrants     PatientAccessGrant[]
+  doctorConnections       DoctorPatient[] @relation("DoctorPatientDoctor")
+  patientConnections      DoctorPatient[] @relation("DoctorPatientPatient")
 
   @@index([oauthProvider, oauthId])
 }
@@ -463,6 +466,38 @@ model VoicePreference {
   voiceLocale String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Sprint 12: doctor portal. A patient creates a one-time, expiring share
+// grant; a doctor redeems the code to form a persistent DoctorPatient
+// connection. Only the SHA-256 hash of the code is stored. Connections are
+// soft-revoked (revokedAt) so history is preserved and either side can end them.
+model PatientAccessGrant {
+  id        String    @id @default(cuid())
+  patientId String
+  patient   User      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([patientId])
+  @@index([expiresAt])
+}
+
+model DoctorPatient {
+  id          String    @id @default(cuid())
+  doctorId    String
+  doctor      User      @relation("DoctorPatientDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId   String
+  patient     User      @relation("DoctorPatientPatient", fields: [patientId], references: [id], onDelete: Cascade)
+  connectedAt DateTime  @default(now())
+  revokedAt   DateTime?
+  revokedById String?
+
+  @@index([doctorId])
+  @@index([patientId])
+  @@index([doctorId, patientId, revokedAt])
 }
 
 model RefreshToken {
