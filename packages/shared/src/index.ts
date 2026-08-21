@@ -1,5 +1,6 @@
 export * from './constants/app.js';
 export * from './constants/care.js';
+export * from './types/admin.js';
 export * from './types/analytics.js';
 export * from './types/api.js';
 export * from './types/assistant.js';
@@ -13,6 +14,7 @@ export * from './types/workout.js';
 export * from './types/reports.js';
 export * from './types/user.js';
 export * from './types/voice.js';
+export * from './validators/admin.js';
 export * from './validators/analytics.js';
 export * from './validators/assistant.js';
 export * from './validators/auth.js';

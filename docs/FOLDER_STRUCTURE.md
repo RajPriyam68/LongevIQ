@@ -2,7 +2,7 @@
 
 This document tracks the repository structure. It is updated at the end of every Sprint.
 
-## Current Structure (Sprint 11)
+## Current Structure (Sprint 13)
 
 ```
 .
@@ -118,6 +118,22 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── analytics.controller.ts       # GET summary/score/insights
 │   │   │   │   │   ├── analytics.routes.ts           # /summary + /score + /insights
 │   │   │   │   │   └── analytics.service.ts          # score math + stats + insights (read-only)
+│   │   │   │   ├── care/            # Patient care sharing (Sprint 12)
+│   │   │   │   │   ├── care.controller.ts            # grants + connections CRUD
+│   │   │   │   │   ├── care.repository.ts            # Prisma grants + connections
+│   │   │   │   │   ├── care.repository.types.ts      # CareRepository contract + records
+│   │   │   │   │   ├── care.routes.ts                # /grants + /connections
+│   │   │   │   │   └── care.service.ts               # code hashing + revoke + audit
+│   │   │   │   ├── doctor/          # Doctor portal (Sprint 12)
+│   │   │   │   │   ├── doctor.controller.ts          # redeem + patient read endpoints
+│   │   │   │   │   ├── doctor.routes.ts              # DOCTOR-only /doctor routes
+│   │   │   │   │   └── doctor.service.ts             # connection guard + delegated reads
+│   │   │   │   ├── admin/           # Admin dashboard (Sprint 13)
+│   │   │   │   │   ├── admin.controller.ts           # summary/users/audit-logs handlers
+│   │   │   │   │   ├── admin.repository.ts           # Prisma read-only aggregates + lists
+│   │   │   │   │   ├── admin.repository.types.ts     # AdminRepository contract + records
+│   │   │   │   │   ├── admin.routes.ts               # ADMIN-only /admin routes
+│   │   │   │   │   └── admin.service.ts              # summary + directory + audit mapping
 │   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
@@ -157,7 +173,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
 │   │   │   ├── assistant.service.spec.ts  # Assistant unit tests (fake LLM + repository)
-│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge + LLM + assistant + voice
+│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge + LLM + assistant + voice + care + admin
 │   │   │   ├── health.spec.ts         # API tests (supertest)
 │   │   │   ├── knowledge-chunker.spec.ts  # Markdown chunker unit tests
 │   │   │   ├── knowledge.service.spec.ts  # Knowledge service unit tests
@@ -167,6 +183,10 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── nutrition.service.spec.ts  # Nutrition service unit tests
 │   │   │   ├── voice.service.spec.ts      # Voice preference service unit tests
 │   │   │   ├── analytics.service.spec.ts  # Health score, summary, insights unit tests
+│   │   │   ├── care.service.spec.ts        # Care grant/connection unit tests (fake repo)
+│   │   │   ├── doctor.service.spec.ts      # Doctor portal unit tests (fake repos)
+│   │   │   ├── admin.service.spec.ts       # Admin summary/directory/audit unit tests (fake repo)
+│   │   │   ├── admin.guard.spec.ts         # Role-escalation guardrail + admin schema tests
 │   │   │   ├── workout-planner.spec.ts    # Target math + weekly composition unit tests
 │   │   │   ├── workout.service.spec.ts    # Workout service unit tests
 │   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
@@ -182,7 +202,9 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   ├── workout.integration.spec.ts # DB-backed plan create/list/get/delete tests
 │   │   │   │   ├── voice.integration.spec.ts # DB-backed voice preference tests
 │   │   │   │   ├── analytics.integration.spec.ts # DB-backed analytics score/summary/insights tests
-│   │   │   │   └── reports.integration.spec.ts # DB-backed report upload/download tests
+│   │   │   │   ├── reports.integration.spec.ts # DB-backed report upload/download tests
+│   │   │   │   ├── doctor.integration.spec.ts # DB-backed doctor portal + care sharing tests
+│   │   │   │   └── admin.integration.spec.ts # DB-backed admin dashboard + role guardrail tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
 │   │   ├── assets/                    # Vendored OCR assets (committed)
 │   │   │   ├── tessdata/eng.traineddata.gz  # tesseract English model
@@ -229,6 +251,11 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── page.tsx       # Workout planner builder + weekly plan view (protected)
 │       │   │   ├── medications/
 │       │   │   │   └── page.tsx       # Medication reminders + daily schedule (protected)
+│       │   │   ├── doctor/
+│       │   │   │   ├── patients/[patientId]/page.tsx # Per-patient read-only view (DOCTOR only)
+│       │   │   │   └── page.tsx       # Doctor portal: redeem code + connected patients
+│       │   │   ├── admin/
+│       │   │   │   └── page.tsx       # Admin dashboard: overview/users/audit tabs (ADMIN only)
 │       │   │   └── reports/
 │       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
 │       │   │       └── page.tsx       # Report list + upload (protected)
@@ -245,7 +272,14 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── analytics-insights.tsx   # severity-styled insights list
 │       │   │   ├── auth/
 │       │   │   │   ├── guest-only.tsx
-│       │   │   │   └── require-auth.tsx
+│       │   │   │   ├── require-auth.tsx
+│       │   │   │   └── require-role.tsx      # Role-scoped route guard (Sprint 12)
+│       │   │   ├── care/              # Sprint 12 patient care-sharing UI
+│       │   │   │   └── care-share-card.tsx   # Generate/revoke share codes + connections
+│       │   │   ├── admin/             # Sprint 13 admin dashboard UI
+│       │   │   │   ├── admin-summary.tsx     # Stat cards + role breakdown + recent signups
+│       │   │   │   ├── admin-users.tsx       # Directory table + search/role/active filters
+│       │   │   │   └── admin-audit-log.tsx   # Audit log table + action/entity filters
 │       │   │   ├── dashboard/         # Sprint 2 dashboard UI
 │       │   │   │   ├── metric-chart.tsx      # Recharts line chart
 │       │   │   │   ├── metric-form.tsx       # Add-measurement form (RHF + zod)
@@ -259,7 +293,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── layout/
 │       │   │   │   ├── medical-disclaimer.tsx
 │       │   │   │   ├── site-footer.tsx
-│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports/Knowledge/Nutrition/Workout/Medications links)
+│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports/Knowledge/Nutrition/Workout/Medications links + role-scoped Doctor/Admin)
 │       │   │   │   └── theme-toggle.tsx
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
@@ -312,6 +346,13 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── reports-api.ts     # Typed report endpoints (multipart upload)
 │       │   │   ├── reports-format.ts  # Category/status/flag/file-size helpers
 │       │   │   ├── reports-format.spec.ts
+│       │   │   ├── care-api.ts        # Typed grant + connection endpoints (Sprint 12)
+│       │   │   ├── doctor-api.ts      # Typed doctor portal + patient read endpoints
+│       │   │   ├── doctor-format.ts   # Person name + short date labels
+│       │   │   ├── doctor-format.spec.ts
+│       │   │   ├── admin-api.ts       # Typed admin summary/users/audit-log endpoints (Sprint 13)
+│       │   │   ├── admin-format.ts    # Role labels + date-time/relative formatting
+│       │   │   ├── admin-format.spec.ts
 │       │   │   ├── utils.ts           # cn() helper
 │       │   │   └── utils.spec.ts
 │       │   ├── test/
@@ -348,6 +389,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/medication.ts    # MedicationForm/AdherenceStatus, medication + schedule + dose types
 │       │   ├── types/voice.ts         # VoiceInputMethod, VoicePreferences, VoiceCapabilities + bounds
 │       │   ├── types/analytics.ts     # Health score, metric analytics, insights + score math
+│       │   ├── types/care.ts          # ShareGrant, CareConnection, DoctorConnection (Sprint 12)
+│       │   ├── types/admin.ts         # AdminSummary, AdminUser, AdminAuditLogEntry (Sprint 13)
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/nutrition.ts # createNutritionPlan + listNutritionPlansQuery schemas
@@ -359,6 +402,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── validators/analytics.ts # analyticsQuerySchema (days 1-365)
 │       │   ├── validators/metrics.ts  # createMetric/updateMetric/listMetricsQuery schemas
 │       │   ├── validators/reports.ts  # createReportMetadata/updateReport/listReportsQuery schemas
+│       │   ├── validators/care.ts     # redeemCodeSchema (Sprint 12)
+│       │   ├── validators/admin.ts    # listAdminUsersQuery + listAuditLogsQuery schemas (Sprint 13)
 │       │   └── index.ts
 │       └── tsconfig.json
 └── tsconfig.base.json

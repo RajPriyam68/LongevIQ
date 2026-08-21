@@ -45,6 +45,9 @@ import { PrismaCareRepository } from './modules/care/care.repository.js';
 import { CareService } from './modules/care/care.service.js';
 import type { CareRepository } from './modules/care/care.repository.types.js';
 import { DoctorService } from './modules/doctor/doctor.service.js';
+import { PrismaAdminRepository } from './modules/admin/admin.repository.js';
+import { AdminService } from './modules/admin/admin.service.js';
+import type { AdminRepository } from './modules/admin/admin.repository.types.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -77,6 +80,8 @@ export interface Container {
   careRepository: CareRepository;
   careService: CareService;
   doctorService: DoctorService;
+  adminRepository: AdminRepository;
+  adminService: AdminService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -181,6 +186,9 @@ export function createContainer(overrides?: Partial<Container>): Container {
       auditSink,
     );
 
+  const adminRepository = overrides?.adminRepository ?? new PrismaAdminRepository();
+  const adminService = overrides?.adminService ?? new AdminService(adminRepository);
+
   return {
     authRepository,
     tokenService,
@@ -212,5 +220,7 @@ export function createContainer(overrides?: Partial<Container>): Container {
     careRepository,
     careService,
     doctorService,
+    adminRepository,
+    adminService,
   };
 }

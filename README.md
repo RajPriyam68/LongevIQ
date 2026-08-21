@@ -359,6 +359,44 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   sparkline, an insights list, and a 7/30/90-day window switcher.
 - **Tests**: 300 API tests (unit + DB-backed integration) and 72 web tests.
 
+### Sprint 12 — Doctor Portal & Patient Care Sharing
+
+- **Care sharing**: a patient can generate a one-time **share grant** (code `LV-XXXX-XXXX-XXXX`,
+  expiry 7 days, stored only as a SHA-256 hash). A doctor redeems the code to create an active,
+  patient-approved connection; a code can never be reused, and the patient can revoke a connection
+  at any time.
+- **API**: under `/api/v1/care` (patient side) — `POST /grants`, `GET /connections`, `DELETE
+  /connections/:id`; and under `/api/v1/doctor` (DOCTOR-only) — `POST /connections` (redeem),
+  `GET /connections`, `DELETE /connections/:patientId`, plus read-only `GET /patients/:id/{overview,
+  metrics, reports, analytics}`. Doctors receive report **findings** but never raw files, parsed
+  text, or storage keys.
+- **Authorization**: `/doctor` is guarded by `requireRoles(UserRole.DOCTOR)`; every patient read
+  verifies an active connection first (404 for unknown/unconnected patients, preserving owner
+  privacy).
+- **Audit attribution**: grants, connections, and disconnections are audited as `DATA.CARE_*`
+  events with summary metadata only (patient/connection ids, never health content).
+- **Data model**: `PatientAccessGrant` and `DoctorPatient` tables (active-connection pattern with
+  soft revoke) — migration `20260817151544_add_doctor_portal`.
+- **Frontend**: protected `/doctor` portal (code redeem + connected patients list) and a per-patient
+  `/doctor/patients/[patientId]` view (overview, metrics, reports, analytics) guarded by the new
+  `RequireRole` component; the header shows a Doctor link only to DOCTOR-role users. Patient pages
+  read dynamic params via `useParams`.
+- **Tests**: 344 API tests (unit + DB-backed integration) and 76 web tests.
+
+### Sprint 13 — Admin Dashboard
+
+- **Admin-only API**: read-only, ADMIN-role dashboard under `/api/v1/admin` (guarded by `requireAuth`
+  + `requireRoles(UserRole.ADMIN)`): `GET /summary` (user/content/audit aggregates), `GET /users`
+  (paginated directory with search, role, and active filters), and `GET /audit-logs` (paginated,
+  filterable reader over the append-only audit trail with actor email). No new tables or migration —
+  everything is computed from existing `User`, `HealthMetric`, `MedicalReport`, and `AuditLog` rows.
+- **Role escalation guardrails**: all public write schemas remain `.strict()` and accept no `role`
+  field (register/update-profile/login/password change reject `role` with 400); the admin module is
+  strictly read-only and exposes no role-change or user-mutation endpoint.
+- **Frontend**: protected `/admin` page (ADMIN only) with Overview / Users / Audit log tabs reusing
+  the `RequireRole` guard; the header shows an Admin link only to ADMIN-role users.
+- **Tests**: 378 API tests (unit + DB-backed integration) and 80 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -377,8 +415,8 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 9      | Medication reminder **(done)**                        |
 | 10     | Voice assistant **(done)**                             |
 | 11     | Health score & analytics **(done)**                          |
-| 12     | Doctor portal                                                |
-| 13     | Admin dashboard                                              |
+| 12     | Doctor portal **(done)**                                   |
+| 13     | Admin dashboard **(done)**                                 |
 | 14     | Notifications                                                |
 | 15     | Deployment & DevOps                                          |
 | 16     | Testing & optimization                                       |

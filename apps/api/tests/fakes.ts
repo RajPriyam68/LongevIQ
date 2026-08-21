@@ -30,6 +30,15 @@ import type {
   DoctorConnectionRecord,
   UserRef,
 } from '../src/modules/care/care.repository.types.js';
+import type {
+  AdminAuditLogRecord,
+  AdminRecentSignupRecord,
+  AdminRepository,
+  AdminUserRecord,
+  ListAdminUsersFilter,
+  ListAuditLogsFilter,
+  UserRoleCount,
+} from '../src/modules/admin/admin.repository.types.js';
 
 let seq = 0;
 let nowOffset = 0;
@@ -1452,5 +1461,120 @@ export class FakeCareRepository implements CareRepository {
       connection.revokedAt = new Date();
       connection.revokedById = revokedById;
     }
+  }
+}
+
+export class FakeAdminRepository implements AdminRepository {
+  users = new Map<string, AdminUserRecord>();
+  auditLogs = new Map<string, AdminAuditLogRecord>();
+  metricCount = 0;
+  reportCount = 0;
+  parsedReportCount = 0;
+
+  async countUsers(): Promise<number> {
+    return this.users.size;
+  }
+
+  async countUsersByRole(): Promise<UserRoleCount[]> {
+    const counts = new Map<string, number>();
+    for (const user of this.users.values()) {
+      counts.set(user.role, (counts.get(user.role) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([role, count]) => ({ role: role as UserRole, count }));
+  }
+
+  async countVerifiedUsers(): Promise<number> {
+    return [...this.users.values()].filter((user) => user.emailVerified).length;
+  }
+
+  async countActiveUsersSince(since: Date): Promise<number> {
+    return [...this.users.values()].filter(
+      (user) => user.lastLoginAt !== null && user.lastLoginAt >= since,
+    ).length;
+  }
+
+  async listRecentSignups(limit: number): Promise<AdminRecentSignupRecord[]> {
+    return [...this.users.values()]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit)
+      .map((user) => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        createdAt: user.createdAt,
+      }));
+  }
+
+  async countHealthMetrics(): Promise<number> {
+    return this.metricCount;
+  }
+
+  async countMedicalReports(): Promise<number> {
+    return this.reportCount;
+  }
+
+  async countParsedReports(): Promise<number> {
+    return this.parsedReportCount;
+  }
+
+  async countAuditEvents(): Promise<number> {
+    return this.auditLogs.size;
+  }
+
+  async listUsers(filter: ListAdminUsersFilter): Promise<{
+    items: AdminUserRecord[];
+    total: number;
+  }> {
+    let rows = [...this.users.values()];
+    if (filter.search) {
+      const query = filter.search.toLowerCase();
+      rows = rows.filter(
+        (user) =>
+          user.email.toLowerCase().includes(query) ||
+          user.firstName.toLowerCase().includes(query) ||
+          user.lastName.toLowerCase().includes(query),
+      );
+    }
+    if (filter.role) {
+      rows = rows.filter((user) => user.role === filter.role);
+    }
+    if (filter.active !== undefined) {
+      rows = rows.filter((user) => user.isActive === filter.active);
+    }
+    const total = rows.length;
+    const items = rows
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice((filter.page - 1) * filter.limit, filter.page * filter.limit);
+    return { items, total };
+  }
+
+  async listAuditLogs(filter: ListAuditLogsFilter): Promise<{
+    items: AdminAuditLogRecord[];
+    total: number;
+  }> {
+    let rows = [...this.auditLogs.values()];
+    if (filter.action) {
+      const query = filter.action.toLowerCase();
+      rows = rows.filter((row) => row.action.toLowerCase().includes(query));
+    }
+    if (filter.entity) {
+      rows = rows.filter((row) => row.entity === filter.entity);
+    }
+    if (filter.userId) {
+      rows = rows.filter((row) => row.userId === filter.userId);
+    }
+    if (filter.from) {
+      rows = rows.filter((row) => row.createdAt >= filter.from!);
+    }
+    if (filter.to) {
+      rows = rows.filter((row) => row.createdAt <= filter.to!);
+    }
+    const total = rows.length;
+    const items = rows
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice((filter.page - 1) * filter.limit, filter.page * filter.limit);
+    return { items, total };
   }
 }

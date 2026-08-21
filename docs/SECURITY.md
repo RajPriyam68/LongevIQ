@@ -20,6 +20,7 @@ accepted with rationale.
 | Google OAuth      | Server-side code exchange; state validated with constant-time comparison; `lq_oauth_state` cookie is httpOnly + short-lived |
 | RBAC              | `requireRoles` middleware guards role-scoped routes                |
 | Audit logging     | `AuditLog` table records auth events (register, login, logout, verify, resend, password change) and metric events (create, update, delete) with actor + action + IP + user-agent |
+| Admin dashboard   | Read-only `/admin` surface (ADMIN only) — summary, user directory, audit-log reader; no mutation or role-change endpoints |
 | Secrets           | Env vars only; `.env*` gitignored; `.env.example` placeholders only |
 | Configuration     | zod-validated env; fail-fast on invalid config; production requires `DATABASE_URL` + `JWT_ACCESS_SECRET` |
 | Logging           | pino redaction of `authorization`, `cookie`, passwords, tokens     |
@@ -266,11 +267,33 @@ accepted with rationale.
 - **Educational guardrail**: score bands and insights use widely-cited reference ranges and are
   presented with the standard medical disclaimer; the score never claims a diagnosis.
 
+## Admin Dashboard Threat Model (Sprint 13)
+
+- **Least privilege**: the entire `/admin` surface is guarded by `requireAuth` +
+  `requireRoles(ADMIN)`; 401 without a token, 403 for any other role (USER or DOCTOR). No admin
+  data is reachable through any other route.
+- **Read-only by construction**: the module exposes only `GET` endpoints (summary, users,
+  audit-logs). There is no role-change, deactivation, invite, or any other user-mutation endpoint,
+  so there is no public role-escalation surface to attack.
+- **Role escalation guardrails**: all public write schemas (`registerSchema`,
+  `updateProfileSchema`, `loginSchema`, `changePasswordSchema`) are `.strict()` and accept no `role`
+  field; submitting `role` to register or update-profile returns `400 VALIDATION_ERROR` (pinned by
+  `admin.guard.spec.ts` and the admin integration spec). Role changes exist only via direct,
+  operator-controlled database updates (used by integration tests and the seed script).
+- **Bound inputs**: user-directory and audit-log queries are zod-validated with `.strict()` —
+  search bounded to 100 chars, `page >= 1`, `limit` 1-100, `role`/`active` from closed enums, and
+  `from`/`to` must be ISO datetimes. Invalid params return 400; unknown fields are rejected.
+- **No new data exposure**: the user directory returns profile metadata the admin is entitled to
+  see (email, names, role, verification/activity flags, OAuth provider, join/last-login times) and
+  never passwords, tokens, or refresh-token material. The audit reader exposes summary metadata
+  only — consistent with the append-only audit policy, no sensitive payloads are ever stored.
+- **No PII amplification**: audit reads are themselves not audited (matching all other read
+  surfaces), so the admin dashboard cannot be used to grow the audit trail or leak through logs.
+
 ## Upcoming Controls (per Sprint)
 
 - **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied.
 - **Sprint 14**: time-based one-time tokens for medication reminders, notifications.
-- **Sprint 13**: admin audit log reader, role escalation guardrails.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.
 
 ## Audit Logging
@@ -280,6 +303,8 @@ Implemented in Sprint 1 via the `AuditLog` table and extended in Sprint 2 (metri
 Sprint 9 (medication reminders), and Sprint 10 (voice preferences). Design principles: append-only by policy (no update/delete flows expose it), event
 classification (`AUTH.*` and `DATA.*` actions), actor + resource + timestamp, IP + user-agent, and
 no sensitive payloads (passwords/tokens/metric/report/chat/nutrition/workout/medication data are never written).
+Sprint 13 adds the ADMIN-only, read-only audit-log reader under `/api/v1/admin/audit-logs` (with
+actor email joined at read time); the audit trail itself remains append-only.
 
 ## Dependency Notes
 

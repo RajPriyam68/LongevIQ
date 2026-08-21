@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 11)
+## Current Endpoints (Sprint 13)
 
 ### Health check
 
@@ -1343,6 +1343,174 @@ Without `date`, today is used.
 for that date. A time that is not scheduled returns `404`; a date after the medication's `endDate`
 returns `400`.
 
+### Care sharing (patient side)
+
+All endpoints below are mounted under `/api/v1/care` and require a valid access token.
+
+**`POST /api/v1/care/grants`** — create a one-time share grant.
+
+**Response 201**
+
+```json
+{
+  "success": true,
+  "data": {
+    "grant": {
+      "id": "grant_123",
+      "code": "LV-ABCD-WXYZ-2345",
+      "expiresAt": "2026-08-24T00:00:00.000Z"
+    }
+  }
+}
+```
+
+**`GET /api/v1/care/connections`** — list the patient's active connections.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "connections": [
+      {
+        "id": "conn_1",
+        "doctor": { "id": "usr_doc", "firstName": "Doc", "lastName": "Tor", "email": "doc@example.com" },
+        "connectedAt": "2026-08-17T12:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+**`DELETE /api/v1/care/connections/:id`** — revoke a connection.
+
+**Response 200**
+
+```json
+{ "success": true, "data": { "revoked": true } }
+```
+
+### Doctor portal
+
+All endpoints below are mounted under `/api/v1/doctor`, require a valid access token **and** the
+`DOCTOR` role. Every patient read first verifies an active connection (unknown/unconnected patients
+return 404).
+
+**`POST /api/v1/doctor/connections`** — redeem a share code.
+
+Request body: `{ "code": "LV-ABCD-WXYZ-2345" }`. Invalid/expired/used codes return 409 (masked).
+
+**`GET /api/v1/doctor/connections`** — list the doctor's connected patients.
+
+**`DELETE /api/v1/doctor/connections/:patientId`** — disconnect from a patient.
+
+**`GET /api/v1/doctor/patients/:patientId/overview`** — dashboard overview for the patient.
+
+**`GET /api/v1/doctor/patients/:patientId/metrics`** — metrics list (same query params as the
+owner-scoped metrics list).
+
+**`GET /api/v1/doctor/patients/:patientId/reports`** — report list **with findings**; raw files,
+`storageKey`, and `parsedText` are never returned.
+
+**`GET /api/v1/doctor/patients/:patientId/analytics?days=30`** — analytics summary, score, and
+insights for the patient.
+
+### Admin dashboard
+
+All endpoints below are mounted under `/api/v1/admin`, require a valid access token **and** the
+`ADMIN` role. The module is strictly read-only.
+
+**`GET /api/v1/admin/summary`** — aggregate platform statistics.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "generatedAt": "2026-08-19T10:00:00.000Z",
+      "users": {
+        "total": 12,
+        "byRole": { "USER": 10, "DOCTOR": 1, "ADMIN": 1 },
+        "verified": 11,
+        "activeLast30Days": 5,
+        "recentSignups": [
+          { "id": "usr_1", "email": "a@example.com", "firstName": "A", "lastName": "B", "role": "USER", "createdAt": "2026-08-19T09:00:00.000Z" }
+        ]
+      },
+      "content": { "healthMetrics": 120, "medicalReports": 9, "parsedReports": 6 },
+      "auditEvents": 88
+    }
+  }
+}
+```
+
+**`GET /api/v1/admin/users`** — paginated user directory.
+
+Query params: `search` (name/email substring), `role` (`USER` | `DOCTOR` | `ADMIN`), `active`
+(`true` | `false`), `page` (>= 1, default 1), `limit` (1-100, default 20).
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "users": {
+      "items": [
+        {
+          "id": "usr_1",
+          "email": "a@example.com",
+          "firstName": "A",
+          "lastName": "B",
+          "role": "USER",
+          "emailVerified": true,
+          "isActive": true,
+          "oauthProvider": null,
+          "createdAt": "2026-08-19T09:00:00.000Z",
+          "lastLoginAt": "2026-08-19T09:05:00.000Z"
+        }
+      ],
+      "pagination": { "page": 1, "limit": 20, "total": 12, "totalPages": 1 }
+    }
+  }
+}
+```
+
+**`GET /api/v1/admin/audit-logs`** — paginated audit log reader.
+
+Query params: `action` (substring, e.g. `AUTH`), `entity` (exact, e.g. `User`), `userId`,
+`from`/`to` (ISO datetimes, inclusive), `page`, `limit`.
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "logs": {
+      "items": [
+        {
+          "id": "log_1",
+          "userId": "usr_1",
+          "userEmail": "a@example.com",
+          "action": "AUTH.LOGIN",
+          "entity": "User",
+          "entityId": "usr_1",
+          "ipAddress": "127.0.0.1",
+          "userAgent": "curl/8.0",
+          "metadata": null,
+          "createdAt": "2026-08-19T09:05:00.000Z"
+        }
+      ],
+      "pagination": { "page": 1, "limit": 20, "total": 88, "totalPages": 5 }
+    }
+  }
+}
+```
+
 ### Not found
 
 Any unknown route returns:
@@ -1376,6 +1544,6 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- Doctor and admin modules (Sprints 12-13)
+- Notifications (Sprint 14).
 
-Swagger/OpenAPI documentation will be generated alongside the analytics module.
+Swagger/OpenAPI documentation will be generated alongside the notification module.

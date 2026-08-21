@@ -26,6 +26,7 @@ import { createVoiceRouter } from './modules/voice/voice.routes.js';
 import { createAnalyticsRouter } from './modules/analytics/analytics.routes.js';
 import { createCareRouter } from './modules/care/care.routes.js';
 import { createDoctorRouter } from './modules/doctor/doctor.routes.js';
+import { createAdminRouter } from './modules/admin/admin.routes.js';
 
 export interface AppOptions {
   container?: Partial<Container>;
@@ -144,6 +145,12 @@ export function createApp(options: AppOptions = {}): Express {
     requireAuth(container.tokenService),
     requireRoles(UserRole.DOCTOR),
     createDoctorRouter(container.doctorService),
+  );
+  apiRouter.use(
+    '/admin',
+    requireAuth(container.tokenService),
+    requireRoles(UserRole.ADMIN),
+    createAdminRouter(container.adminService),
   );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);
