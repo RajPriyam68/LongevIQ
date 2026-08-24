@@ -27,6 +27,7 @@ import { createAnalyticsRouter } from './modules/analytics/analytics.routes.js';
 import { createCareRouter } from './modules/care/care.routes.js';
 import { createDoctorRouter } from './modules/doctor/doctor.routes.js';
 import { createAdminRouter } from './modules/admin/admin.routes.js';
+import { createNotificationRouter } from './modules/notifications/notification.routes.js';
 
 export interface AppOptions {
   container?: Partial<Container>;
@@ -151,6 +152,11 @@ export function createApp(options: AppOptions = {}): Express {
     requireAuth(container.tokenService),
     requireRoles(UserRole.ADMIN),
     createAdminRouter(container.adminService),
+  );
+  apiRouter.use(
+    '/notifications',
+    requireAuth(container.tokenService),
+    createNotificationRouter(container.notificationService),
   );
 
   app.use(`${env.API_PREFIX}/${env.API_VERSION}`, apiRouter);

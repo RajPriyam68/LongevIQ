@@ -134,6 +134,12 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   │   ├── admin.repository.types.ts     # AdminRepository contract + records
 │   │   │   │   │   ├── admin.routes.ts               # ADMIN-only /admin routes
 │   │   │   │   │   └── admin.service.ts              # summary + directory + audit mapping
+│   │   │   │   ├── notifications/  # Notification center (Sprint 14)
+│   │   │   │   │   ├── notification.controller.ts    # list/unread-count/read/read-all/delete
+│   │   │   │   │   ├── notification.repository.ts    # Prisma upsert + owner-scoped reads
+│   │   │   │   │   ├── notification.repository.types.ts # NotificationRepository contract
+│   │   │   │   │   ├── notification.routes.ts        # /notifications routes (requireAuth)
+│   │   │   │   │   └── notification.service.ts       # on-demand materialization + reconcile
 │   │   │   │   ├── reports/           # Medical report upload, OCR & parsing
 │   │   │   │   │   ├── reports.controller.ts
 │   │   │   │   │   ├── reports.repository.ts
@@ -173,7 +179,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   ├── tests/
 │   │   │   ├── auth.service.spec.ts   # Unit tests (fake repository)
 │   │   │   ├── assistant.service.spec.ts  # Assistant unit tests (fake LLM + repository)
-│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge + LLM + assistant + voice + care + admin
+│   │   │   ├── fakes.ts               # Fake repositories + storage + email + processor + knowledge + LLM + assistant + voice + care + admin + notifications
 │   │   │   ├── health.spec.ts         # API tests (supertest)
 │   │   │   ├── knowledge-chunker.spec.ts  # Markdown chunker unit tests
 │   │   │   ├── knowledge.service.spec.ts  # Knowledge service unit tests
@@ -187,6 +193,7 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   ├── doctor.service.spec.ts      # Doctor portal unit tests (fake repos)
 │   │   │   ├── admin.service.spec.ts       # Admin summary/directory/audit unit tests (fake repo)
 │   │   │   ├── admin.guard.spec.ts         # Role-escalation guardrail + admin schema tests
+│   │   │   ├── notification.service.spec.ts # Notification materialization/reconcile unit tests
 │   │   │   ├── workout-planner.spec.ts    # Target math + weekly composition unit tests
 │   │   │   ├── workout.service.spec.ts    # Workout service unit tests
 │   │   │   ├── report-ocr.spec.ts     # Real tesseract OCR test (vendored model)
@@ -204,7 +211,8 @@ This document tracks the repository structure. It is updated at the end of every
 │   │   │   │   ├── analytics.integration.spec.ts # DB-backed analytics score/summary/insights tests
 │   │   │   │   ├── reports.integration.spec.ts # DB-backed report upload/download tests
 │   │   │   │   ├── doctor.integration.spec.ts # DB-backed doctor portal + care sharing tests
-│   │   │   │   └── admin.integration.spec.ts # DB-backed admin dashboard + role guardrail tests
+│   │   │   │   ├── admin.integration.spec.ts # DB-backed admin dashboard + role guardrail tests
+│   │   │   │   └── notifications.integration.spec.ts # DB-backed notification feed + ownership tests
 │   │   │   └── setup.ts               # Test env pinning (incl. temp uploads dir)
 │   │   ├── assets/                    # Vendored OCR assets (committed)
 │   │   │   ├── tessdata/eng.traineddata.gz  # tesseract English model
@@ -256,6 +264,8 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   └── page.tsx       # Doctor portal: redeem code + connected patients
 │       │   │   ├── admin/
 │       │   │   │   └── page.tsx       # Admin dashboard: overview/users/audit tabs (ADMIN only)
+│       │   │   ├── notifications/
+│       │   │   │   └── page.tsx       # Notification center: feed + read/type filters (protected)
 │       │   │   └── reports/
 │       │   │       ├── [id]/page.tsx  # Report detail + edit (protected)
 │       │   │       └── page.tsx       # Report list + upload (protected)
@@ -280,6 +290,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   │   ├── admin-summary.tsx     # Stat cards + role breakdown + recent signups
 │       │   │   │   ├── admin-users.tsx       # Directory table + search/role/active filters
 │       │   │   │   └── admin-audit-log.tsx   # Audit log table + action/entity filters
+│       │   │   ├── notifications/     # Sprint 14 notification center UI
+│       │   │   │   ├── notification-bell.tsx  # Header bell + live unread badge
+│       │   │   │   └── notification-list.tsx  # Feed + filters + mark-read/delete/pagination
 │       │   │   ├── dashboard/         # Sprint 2 dashboard UI
 │       │   │   │   ├── metric-chart.tsx      # Recharts line chart
 │       │   │   │   ├── metric-form.tsx       # Add-measurement form (RHF + zod)
@@ -293,7 +306,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── layout/
 │       │   │   │   ├── medical-disclaimer.tsx
 │       │   │   │   ├── site-footer.tsx
-│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports/Knowledge/Nutrition/Workout/Medications links + role-scoped Doctor/Admin)
+│       │   │   │   ├── site-header.tsx          # Auth-aware nav (Dashboard/Reports/Knowledge/Nutrition/Workout/Medications links + role-scoped Doctor/Admin + notification bell)
 │       │   │   │   └── theme-toggle.tsx
 │       │   │   ├── providers/
 │       │   │   │   ├── query-provider.tsx   # TanStack Query
@@ -353,6 +366,9 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   │   ├── admin-api.ts       # Typed admin summary/users/audit-log endpoints (Sprint 13)
 │       │   │   ├── admin-format.ts    # Role labels + date-time/relative formatting
 │       │   │   ├── admin-format.spec.ts
+│       │   │   ├── notifications-api.ts # Typed notification list/unread/read/delete endpoints (Sprint 14)
+│       │   │   ├── notifications-format.ts # Type/severity labels + relative time + badge classes
+│       │   │   ├── notifications-format.spec.ts
 │       │   │   ├── utils.ts           # cn() helper
 │       │   │   └── utils.spec.ts
 │       │   ├── test/
@@ -391,6 +407,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── types/analytics.ts     # Health score, metric analytics, insights + score math
 │       │   ├── types/care.ts          # ShareGrant, CareConnection, DoctorConnection (Sprint 12)
 │       │   ├── types/admin.ts         # AdminSummary, AdminUser, AdminAuditLogEntry (Sprint 13)
+│       │   ├── types/notifications.ts # NotificationType/Severity, AppNotification, list + unread types (Sprint 14)
 │       │   ├── validators/auth.ts     # zod schemas for auth flows
 │       │   ├── validators/assistant.ts # createChatMessage + listChatSessionsQuery schemas
 │       │   ├── validators/nutrition.ts # createNutritionPlan + listNutritionPlansQuery schemas
@@ -404,6 +421,7 @@ This document tracks the repository structure. It is updated at the end of every
 │       │   ├── validators/reports.ts  # createReportMetadata/updateReport/listReportsQuery schemas
 │       │   ├── validators/care.ts     # redeemCodeSchema (Sprint 12)
 │       │   ├── validators/admin.ts    # listAdminUsersQuery + listAuditLogsQuery schemas (Sprint 13)
+│       │   ├── validators/notifications.ts # listNotificationsQuerySchema (Sprint 14)
 │       │   └── index.ts
 │       └── tsconfig.json
 └── tsconfig.base.json

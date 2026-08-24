@@ -72,8 +72,12 @@ missing required variables cause the process to **fail fast**.
 
 > **Medication reminders (Sprint 9).** The reminders module is deterministic CRUD + date math over
 > `Medication` and `MedicationAdherence` rows; it needs no extra configuration beyond
-> `DATABASE_URL`. No email/SMS/TOTP delivery is wired up yet — that is planned for the
-> notifications sprint.
+> `DATABASE_URL`. No email/SMS/TOTP delivery is wired up yet.
+
+> **Notifications (Sprint 14).** The notification center is fully DB-backed: it materializes
+> on demand from existing `Medication`, `MedicalReport`, `HealthMetric`, and `DoctorPatient` rows
+> into the `Notification` table, so it needs no extra configuration beyond `DATABASE_URL`. Queue
+> /push/email delivery remains a documented future enhancement and would reuse `REDIS_URL`.
 
 > **Voice assistant (Sprint 10).** Speech-to-text and text-to-speech run entirely in the browser
 > with the Web Speech API, so no new server configuration is required. The only server-side state
@@ -90,7 +94,7 @@ These are documented now for planning; they are consumed by later Sprints:
 | Variable                | Sprint | Purpose                        |
 | ----------------------- | ------ | ------------------------------ |
 | `OPENAI_EMBEDDING_MODEL`| later  | Semantic-layer embedding model (pgvector) |
-| `REDIS_URL`             | 14     | Queues / notifications         |
+| `REDIS_URL`             | later  | Optional queue-backed push/email delivery for notifications |
 
 ## Web (`apps/web/.env`)
 

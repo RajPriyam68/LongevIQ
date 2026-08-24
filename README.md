@@ -397,6 +397,27 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
   the `RequireRole` guard; the header shows an Admin link only to ADMIN-role users.
 - **Tests**: 378 API tests (unit + DB-backed integration) and 80 web tests.
 
+### Sprint 14 — Notifications
+
+- **Notification center**: an owner-scoped, in-app notification feed under `/api/v1/notifications`
+  (guarded by `requireAuth`): `GET /` (paginated, filterable by `read` and `type`), `GET
+  /unread-count`, `PATCH /:id/read`, `PATCH /read-all`, and `DELETE /:id`.
+- **On-demand materialization (no Redis)**: notifications are derived deterministically from
+  existing rows and materialized idempotently on read into a new `Notification` table
+  (`@@unique([userId, dedupKey])`), mirroring the Sprint 11 analytics precedent. Five sources:
+  `MEDICATION_DUE` (today's schedule, past due time, dose not TAKEN), `REPORT_PROCESSED` /
+  `REPORT_FAILED` (parsed/failed report status), `METRIC_ALERT` (latest tracked reading outside its
+  recommended range), and `CARE_CONNECTION` (patient-side active connection). Reconciliation upserts
+  content, never resurrects a read/dismissed notification, and marks stale `MEDICATION_DUE` /
+  `METRIC_ALERT` notifications read once the dose is taken or the reading returns to range. Queue
+  /email push remains a documented future enhancement.
+- **Data model**: `Notification` table with `NotificationType` / `NotificationSeverity` enums —
+  migration `20260822140450_add_notifications`. Metadata is summary-only (ids/values, never
+  secrets); `dedupKey` is never serialized to clients.
+- **Frontend**: a bell in the header with a live unread badge, and a protected `/notifications` page
+  with read-state and type filters, mark-read / mark-all-read / delete actions, and pagination.
+- **Tests**: 407 API tests (unit + DB-backed integration) and 87 web tests.
+
 ---
 
 ## Roadmap (Sprints)
@@ -417,7 +438,7 @@ See `docs/DEPLOYMENT.md` and `docs/ENVIRONMENT.md` for details.
 | 11     | Health score & analytics **(done)**                          |
 | 12     | Doctor portal **(done)**                                   |
 | 13     | Admin dashboard **(done)**                                 |
-| 14     | Notifications                                                |
+| 14     | Notifications **(done)**                                  |
 | 15     | Deployment & DevOps                                          |
 | 16     | Testing & optimization                                       |
 | 17     | Production release                                           |

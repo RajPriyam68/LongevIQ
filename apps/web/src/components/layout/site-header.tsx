@@ -10,6 +10,7 @@ import { apiLogout } from '@/lib/auth-api';
 import { useAuthStore } from '@/lib/auth-store';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 const NAV_ITEMS = [
   { label: 'Features', href: '#features' },
@@ -65,6 +66,7 @@ function AuthButtons({ compact = false }: { compact?: boolean }) {
         <Button asChild variant="ghost" className="gap-2">
           <Link href="/assistant">Assistant</Link>
         </Button>
+        <NotificationBell />
         {user.role === UserRole.DOCTOR ? (
           <Button asChild variant="ghost" className="gap-2">
             <Link href="/doctor">Doctor</Link>

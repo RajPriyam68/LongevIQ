@@ -65,6 +65,21 @@ enum ChatRole {
   ASSISTANT
 }
 
+enum NotificationType {
+  MEDICATION_DUE
+  REPORT_PROCESSED
+  REPORT_FAILED
+  METRIC_ALERT
+  CARE_CONNECTION
+}
+
+enum NotificationSeverity {
+  INFO
+  WARNING
+  SUCCESS
+  CRITICAL
+}
+
 enum NutritionGoal {
   LOSE_WEIGHT
   MAINTAIN_WEIGHT
@@ -179,6 +194,7 @@ model User {
   patientAccessGrants     PatientAccessGrant[]
   doctorConnections       DoctorPatient[] @relation("DoctorPatientDoctor")
   patientConnections      DoctorPatient[] @relation("DoctorPatientPatient")
+  notifications           Notification[]
 
   @@index([oauthProvider, oauthId])
 }
@@ -543,4 +559,22 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+}
+
+model Notification {
+  id        String                @id @default(cuid())
+  userId    String
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  severity  NotificationSeverity
+  title     String
+  body      String
+  dedupKey  String
+  metadata  Json?
+  readAt    DateTime?
+  createdAt DateTime              @default(now())
+
+  @@unique([userId, dedupKey])
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }

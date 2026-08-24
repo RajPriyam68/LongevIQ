@@ -290,10 +290,11 @@ accepted with rationale.
 - **No PII amplification**: audit reads are themselves not audited (matching all other read
   surfaces), so the admin dashboard cannot be used to grow the audit trail or leak through logs.
 
-## Upcoming Controls (per Sprint)
+## Notification Center Threat Model (Sprint 14)
 
 - **Later**: semantic retrieval with pgvector; embedding keys remain user-supplied.
-- **Sprint 14**: time-based one-time tokens for medication reminders, notifications.
+- **Later**: time-based one-time tokens for medication reminders; push/email delivery (queue-backed)
+  builds on the Sprint 14 feed.
 - **Sprint 15**: TLS, secrets manager, WAF at the edge, rate-limit tuning for production.
 
 ## Audit Logging

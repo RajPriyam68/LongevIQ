@@ -7,7 +7,7 @@ Versioned REST API under `/api/v1`. All responses use a uniform envelope:
 { "success": false, "error": { "code": "...", "message": "...", "details": { ... } } }
 ```
 
-## Current Endpoints (Sprint 13)
+## Current Endpoints (Sprint 14)
 
 ### Health check
 
@@ -1511,6 +1511,79 @@ Query params: `action` (substring, e.g. `AUTH`), `entity` (exact, e.g. `User`), 
 }
 ```
 
+### Notifications
+
+All endpoints below are mounted under `/api/v1/notifications` and require a valid access token.
+Notifications are materialized on demand from existing data on every read, so no explicit creation
+endpoint exists.
+
+Notification types: `MEDICATION_DUE`, `REPORT_PROCESSED`, `REPORT_FAILED`, `METRIC_ALERT`,
+`CARE_CONNECTION`. Severities: `INFO`, `WARNING`, `SUCCESS`, `CRITICAL`.
+
+**`GET /api/v1/notifications`** — list the caller's notifications (newest first).
+
+Query params: `read` (`true` | `false`), `type` (one of the types above), `page` (>= 1, default 1),
+`limit` (1-100, default 20).
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "noti_1",
+        "type": "MEDICATION_DUE",
+        "severity": "WARNING",
+        "title": "Medication due",
+        "body": "Metformin (500mg) is due at 08:00.",
+        "metadata": { "medicationId": "med_1", "time": "08:00", "date": "2026-08-22" },
+        "readAt": null,
+        "createdAt": "2026-08-22T08:00:00.000Z"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 5, "totalPages": 1 }
+  }
+}
+```
+
+Note: `dedupKey` is internal and never serialized; `metadata` is summary-only (ids/values, never
+secrets or full content).
+
+**`GET /api/v1/notifications/unread-count`** — number of unread notifications.
+
+**Response 200**
+
+```json
+{ "success": true, "data": { "unread": 3 } }
+```
+
+**`PATCH /api/v1/notifications/:id/read`** — mark a single notification as read (must be owned by the
+caller).
+
+**Response 200**
+
+```json
+{ "success": true, "data": { "id": "noti_1", "readAt": "2026-08-22T10:00:00.000Z" } }
+```
+
+**`PATCH /api/v1/notifications/read-all`** — mark every unread notification as read.
+
+**Response 200**
+
+```json
+{ "success": true, "data": { "marked": 3 } }
+```
+
+**`DELETE /api/v1/notifications/:id`** — delete a notification (must be owned by the caller).
+
+**Response 200**
+
+```json
+{ "success": true, "data": { "deleted": true } }
+```
+
 ### Not found
 
 Any unknown route returns:
@@ -1544,6 +1617,4 @@ Any unknown route returns:
 
 The following route groups are added by later Sprints (see `docs/ARCHITECTURE.md`):
 
-- Notifications (Sprint 14).
-
-Swagger/OpenAPI documentation will be generated alongside the notification module.
+- Real-time notification delivery (WebSocket/SSE push) and email/SMS digests (Sprint 15+).

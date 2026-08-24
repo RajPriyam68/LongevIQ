@@ -1578,3 +1578,119 @@ export class FakeAdminRepository implements AdminRepository {
     return { items, total };
   }
 }
+
+export interface NotificationLike {
+  id: string;
+  userId: string;
+  type: string;
+  severity: string;
+  title: string;
+  body: string;
+  dedupKey: string;
+  metadata: unknown | null;
+  readAt: Date | null;
+  createdAt: Date;
+}
+
+export class FakeNotificationRepository {
+  notifications = new Map<string, NotificationLike>();
+
+  async upsert(input: {
+    userId: string;
+    type: string;
+    severity: string;
+    title: string;
+    body: string;
+    dedupKey: string;
+    metadata?: unknown;
+  }): Promise<NotificationLike> {
+    for (const existing of this.notifications.values()) {
+      if (existing.userId === input.userId && existing.dedupKey === input.dedupKey) {
+        existing.type = input.type;
+        existing.severity = input.severity;
+        existing.title = input.title;
+        existing.body = input.body;
+        existing.metadata = input.metadata ?? null;
+        return existing;
+      }
+    }
+    const row: NotificationLike = {
+      id: nextId('noti'),
+      userId: input.userId,
+      type: input.type,
+      severity: input.severity,
+      title: input.title,
+      body: input.body,
+      dedupKey: input.dedupKey,
+      metadata: input.metadata ?? null,
+      readAt: null,
+      createdAt: new Date(),
+    };
+    this.notifications.set(row.id, row);
+    return row;
+  }
+
+  async listByUser(
+    userId: string,
+    filter: { read?: boolean; type?: string; page: number; limit: number },
+  ): Promise<{ items: NotificationLike[]; total: number }> {
+    const items = [...this.notifications.values()]
+      .filter((row) => row.userId === userId)
+      .filter((row) => (filter.read === undefined ? true : (row.readAt !== null) === filter.read))
+      .filter((row) => (filter.type ? row.type === filter.type : true))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const total = items.length;
+    const start = (filter.page - 1) * filter.limit;
+    return { items: items.slice(start, start + filter.limit), total };
+  }
+
+  async countUnreadByUser(userId: string): Promise<number> {
+    return [...this.notifications.values()].filter(
+      (row) => row.userId === userId && row.readAt === null,
+    ).length;
+  }
+
+  async listDedupKeysByType(userId: string, type: string): Promise<string[]> {
+    return [...this.notifications.values()]
+      .filter((row) => row.userId === userId && row.type === type)
+      .map((row) => row.dedupKey);
+  }
+
+  async markReadByDedupKeys(userId: string, dedupKeys: string[]): Promise<number> {
+    const targets = new Set(dedupKeys);
+    let count = 0;
+    for (const row of this.notifications.values()) {
+      if (row.userId === userId && targets.has(row.dedupKey) && row.readAt === null) {
+        row.readAt = new Date();
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  async findById(id: string): Promise<NotificationLike | null> {
+    return this.notifications.get(id) ?? null;
+  }
+
+  async markRead(id: string): Promise<NotificationLike> {
+    const row = this.notifications.get(id);
+    if (!row) throw new Error(`notification ${id} not found`);
+    row.readAt = new Date();
+    return row;
+  }
+
+  async markAllRead(userId: string): Promise<number> {
+    let count = 0;
+    for (const row of this.notifications.values()) {
+      if (row.userId === userId && row.readAt === null) {
+        row.readAt = new Date();
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.notifications.delete(id);
+  }
+}

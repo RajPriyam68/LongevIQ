@@ -48,6 +48,9 @@ import { DoctorService } from './modules/doctor/doctor.service.js';
 import { PrismaAdminRepository } from './modules/admin/admin.repository.js';
 import { AdminService } from './modules/admin/admin.service.js';
 import type { AdminRepository } from './modules/admin/admin.repository.types.js';
+import { PrismaNotificationRepository } from './modules/notifications/notification.repository.js';
+import { NotificationService } from './modules/notifications/notification.service.js';
+import type { NotificationRepository } from './modules/notifications/notification.repository.types.js';
 
 export interface Container {
   authRepository: AuthRepository;
@@ -82,6 +85,8 @@ export interface Container {
   doctorService: DoctorService;
   adminRepository: AdminRepository;
   adminService: AdminService;
+  notificationRepository: NotificationRepository;
+  notificationService: NotificationService;
 }
 
 export function createContainer(overrides?: Partial<Container>): Container {
@@ -189,6 +194,18 @@ export function createContainer(overrides?: Partial<Container>): Container {
   const adminRepository = overrides?.adminRepository ?? new PrismaAdminRepository();
   const adminService = overrides?.adminService ?? new AdminService(adminRepository);
 
+  const notificationRepository =
+    overrides?.notificationRepository ?? new PrismaNotificationRepository();
+  const notificationService =
+    overrides?.notificationService ??
+    new NotificationService({
+      notificationRepository,
+      medicationRepository,
+      reportsRepository,
+      metricsRepository,
+      careRepository,
+    });
+
   return {
     authRepository,
     tokenService,
@@ -222,5 +239,7 @@ export function createContainer(overrides?: Partial<Container>): Container {
     doctorService,
     adminRepository,
     adminService,
+    notificationRepository,
+    notificationService,
   };
 }
