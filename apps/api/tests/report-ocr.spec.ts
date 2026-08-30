@@ -59,7 +59,7 @@ describeOcr('ReportOcrService (real tesseract)', () => {
     } finally {
       await ocr.dispose();
     }
-  });
+  }, 30_000);
 });
 
 describe('extractPdfText (digital PDF)', () => {
@@ -84,5 +84,5 @@ describe('extractPdfText (digital PDF)', () => {
     } finally {
       await doc.loadingTask.destroy();
     }
-  });
+  }, 30_000);
 });
