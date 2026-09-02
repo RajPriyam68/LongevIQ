@@ -1,4 +1,29 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+
+// Loads apps/api/.env (module-relative so it works regardless of CWD).
+// Existing process.env values are never overridden, so platform-provided
+// variables and the test setup remain authoritative.
+function loadDotEnvFile(): void {
+  const envPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '.env');
+  try {
+    if (fs.existsSync(envPath)) {
+      process.loadEnvFile(envPath);
+      // Empty values in the file mean "not configured" (e.g. USER_LLM_API_KEY=
+      // or SMTP_USER=). Normalize them to unset so the optional schema fields
+      // take their defaults instead of failing on empty strings.
+      for (const key of Object.keys(process.env)) {
+        if (process.env[key] === '') {
+          delete process.env[key];
+        }
+      }
+    }
+  } catch {
+    // Leave env parsing to the schema validation below.
+  }
+}
 
 function devSecret(field: string): string {
   return `${field}_DEV_INSECURE_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
@@ -40,6 +65,12 @@ const envSchema = z.object({
 
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().optional(),
+  // Explicit TLS (SMTPS) on port 465. When false and SMTP_HOST/SMTP_PORT are
+  // set, nodemailer negotiates STARTTLS opportunistically on plain ports.
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   EMAIL_FROM: z.string().default('LongevIQ <no-reply@longeviq.example.com>'),
@@ -85,6 +116,7 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 function loadEnv(): Env {
+  loadDotEnvFile();
   const base = process.env.NODE_ENV ?? 'development';
   const isDevOrTest = base === 'development' || base === 'test';
 

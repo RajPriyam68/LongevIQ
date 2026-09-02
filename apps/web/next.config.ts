@@ -3,6 +3,9 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Keep the dev-server build output separate from `next build`'s `.next` so
+  // running a production build never clobbers a running dev server.
+  distDir: process.env.NEXT_DIST_DIR ?? '.next',
   allowedDevOrigins: ['.monkeycode-ai.live'],
   images: {
     unoptimized: true,
