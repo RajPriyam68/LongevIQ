@@ -2,6 +2,24 @@ import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../../config/env.js';
 import { logger } from '../../utils/logger.js';
 
+const SMTP_CONNECTION_TIMEOUT_MS = 10_000;
+const SMTP_GREETING_TIMEOUT_MS = 10_000;
+const SMTP_SOCKET_TIMEOUT_MS = 15_000;
+const SMTP_RETRY_DELAY_MS = 500;
+const SMTP_MAX_ATTEMPTS = 2;
+
+const SMTP_TRANSIENT_ERROR_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EPIPE',
+  'ETIMEDOUT',
+  'ESOCKETTIMEDOUT',
+  'EAI_AGAIN',
+  'ENOTFOUND',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+]);
+
 export interface SendEmailInput {
   to: string;
   subject: string;
@@ -20,6 +38,12 @@ export class EmailService {
           host: env.SMTP_HOST,
           port: env.SMTP_PORT,
           secure: env.SMTP_SECURE,
+          // A wedged or restarting SMTP server must fail fast instead of
+          // holding the awaited send open for nodemailer's multi-minute
+          // defaults, which otherwise surfaces as delayed/missing emails.
+          connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+          greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+          socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
           auth:
             env.SMTP_USER && env.SMTP_PASS
               ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
@@ -34,19 +58,48 @@ export class EmailService {
       return;
     }
 
-    try {
-      await this.transporter.sendMail({
-        from: env.EMAIL_FROM,
-        to: input.to,
-        subject: input.subject,
-        text: input.text,
-        html: input.html,
-      });
-      logger.info({ to: input.to, subject: input.subject }, 'Email sent');
-    } catch (error) {
-      logger.error({ error, to: input.to }, 'Failed to send email');
-      throw new Error('Failed to send email. Please try again.');
+    for (let attempt = 1; attempt <= SMTP_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        await this.transporter.sendMail({
+          from: env.EMAIL_FROM,
+          to: input.to,
+          subject: input.subject,
+          text: input.text,
+          html: input.html,
+        });
+        logger.info({ to: input.to, subject: input.subject }, 'Email sent');
+        return;
+      } catch (error) {
+        const retrying = this.isTransient(error) && attempt < SMTP_MAX_ATTEMPTS;
+        if (retrying) {
+          logger.warn(
+            { err: error, to: input.to, subject: input.subject, attempt },
+            'SMTP send failed transiently; retrying',
+          );
+          await new Promise((resolve) => setTimeout(resolve, SMTP_RETRY_DELAY_MS));
+        } else {
+          logger.error(
+            { err: error, to: input.to, subject: input.subject, attempt },
+            'Failed to send email',
+          );
+          break;
+        }
+      }
     }
+    throw new Error('Failed to send email. Please try again.');
+  }
+
+  private isTransient(error: unknown): boolean {
+    if (typeof error === 'object' && error !== null && 'code' in error) {
+      const code = (error as { code?: unknown }).code;
+      if (typeof code === 'string' && SMTP_TRANSIENT_ERROR_CODES.has(code)) {
+        return true;
+      }
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return /greeting never received|unexpected socket close|socket hang up|connection (closed|reset|refused)|mail server not ready|socket closed/i.test(
+      message,
+    );
   }
 
   private logInDevelopment(input: SendEmailInput): void {
