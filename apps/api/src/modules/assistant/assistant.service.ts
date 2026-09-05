@@ -11,6 +11,7 @@ import type {
   VoiceInputMethod,
 } from '@longeviq/shared';
 import { AppError } from '../../utils/app-error.js';
+import { logger } from '../../utils/logger.js';
 import type { AuditSink } from '../metrics/metrics.repository.types.js';
 import { LlmNotConfiguredError, LlmUpstreamError, type LlmClient } from './llm/llm-client.js';
 import { buildChatMessages, type RetrievedSection } from './prompt/prompt-builder.js';
@@ -44,6 +45,17 @@ const NOT_CONFIGURED_MESSAGE =
 const UPSTREAM_ERROR_MESSAGE =
   "I couldn't reach the AI provider right now. Please try again in a moment. If the problem persists, " +
   'ask an administrator to check the LLM configuration.';
+
+const PROVIDER_CONFIG_ERROR_MESSAGE =
+  "The AI assistant's AI provider rejected the request. This usually means the LLM configuration is " +
+  'invalid: ask an administrator to verify USER_LLM_API_KEY, USER_LLM_BASE_URL, and USER_LLM_MODEL in ' +
+  'the API environment, then try again.';
+
+function isProviderConfigurationError(status?: number): boolean {
+  return (
+    status !== undefined && (status === 400 || status === 401 || status === 403 || status === 404)
+  );
+}
 
 export class AssistantService {
   constructor(
@@ -107,10 +119,23 @@ export class AssistantService {
       if (error instanceof LlmNotConfiguredError) {
         content = NOT_CONFIGURED_MESSAGE;
         providerConfigured = false;
+        logger.warn(
+          'AI assistant chat requested but the LLM provider is not configured (USER_LLM_API_KEY is empty).',
+        );
       } else if (error instanceof LlmUpstreamError) {
-        content = UPSTREAM_ERROR_MESSAGE;
+        if (isProviderConfigurationError(error.status)) {
+          content = PROVIDER_CONFIG_ERROR_MESSAGE;
+          logger.error(
+            { status: error.status },
+            'AI assistant provider rejected the request; check the USER_LLM_* configuration.',
+          );
+        } else {
+          content = UPSTREAM_ERROR_MESSAGE;
+          logger.warn({ status: error.status ?? null }, 'AI assistant provider request failed.');
+        }
       } else {
         content = UPSTREAM_ERROR_MESSAGE;
+        logger.error({ err: error }, 'AI assistant chat failed unexpectedly.');
       }
       isError = true;
       sources = null;

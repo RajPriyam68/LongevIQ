@@ -130,6 +130,32 @@ describe('AssistantService.chat', () => {
     expect(assistant.content).toContain("couldn't reach the AI provider");
   });
 
+  it('surfaces a clear configuration notice when the provider rejects the credentials', async () => {
+    const llm = new FakeLlmClient();
+    llm.error = new LlmUpstreamError('HTTP 401', 401);
+    const { service } = makeService({ llm });
+
+    const result = await service.chat(USER, { message: 'Any health question' });
+
+    const assistant = result.session.messages[1]!;
+    expect(assistant.isError).toBe(true);
+    expect(assistant.content).toContain('LLM configuration is');
+    expect(assistant.content).toContain('USER_LLM_API_KEY');
+    expect(assistant.content).not.toContain("couldn't reach the AI provider");
+  });
+
+  it('treats an unknown model rejection (404) as a configuration problem, not an outage', async () => {
+    const llm = new FakeLlmClient();
+    llm.error = new LlmUpstreamError('HTTP 404', 404);
+    const { service } = makeService({ llm });
+
+    const result = await service.chat(USER, { message: 'Any health question' });
+
+    const assistant = result.session.messages[1]!;
+    expect(assistant.isError).toBe(true);
+    expect(assistant.content).toContain('USER_LLM_MODEL');
+  });
+
   it('truncates an oversized first message when building the session title', async () => {
     const { service } = makeService({});
     const long = 'a'.repeat(200);
