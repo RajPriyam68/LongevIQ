@@ -91,6 +91,28 @@ describe('api-client', () => {
     expect(authorization[2]).toBe('Bearer fresh-token');
   });
 
+  it('sends FormData as multipart instead of JSON-serializing it', async () => {
+    const adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
+      expect(config.data).toBeInstanceOf(FormData);
+      return {
+        data: { success: true, data: { ok: true } },
+        status: 201,
+        statusText: 'Created',
+        headers: new AxiosHeaders(),
+        config,
+      };
+    });
+    apiClient.defaults.adapter = adapter as unknown as AxiosRequestConfig['adapter'];
+
+    const form = new FormData();
+    form.append('file', new File(['png-bytes'], 'xray.png', { type: 'image/png' }));
+    form.append('title', 'X-Ray');
+    const result = await apiClient.post<{ success: true; data: { ok: boolean } }>('/reports', form);
+
+    expect(result.data.data).toEqual({ ok: true });
+    expect(adapter).toHaveBeenCalledTimes(1);
+  });
+
   it('refreshes once on a 401 and retries the original request', async () => {
     const { calls } = installAdapter();
     const result = await apiGet<{ ok: boolean }>('/users/me');
