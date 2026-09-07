@@ -8,6 +8,8 @@ const SMTP_SOCKET_TIMEOUT_MS = 15_000;
 const SMTP_RETRY_DELAY_MS = 500;
 const SMTP_MAX_ATTEMPTS = 2;
 
+const DEFAULT_EMAIL_FROM = 'LongevIQ <no-reply@longeviq.dev>';
+
 const SMTP_TRANSIENT_ERROR_CODES = new Set([
   'ECONNREFUSED',
   'ECONNRESET',
@@ -32,28 +34,42 @@ export class EmailService {
   private readonly smtpConfigured: boolean;
 
   constructor() {
-    this.smtpConfigured = Boolean(env.SMTP_HOST && env.SMTP_PORT);
-    this.transporter = this.smtpConfigured
-      ? nodemailer.createTransport({
-          host: env.SMTP_HOST,
-          port: env.SMTP_PORT,
-          secure: env.SMTP_SECURE,
-          // A wedged or restarting SMTP server must fail fast instead of
-          // holding the awaited send open for nodemailer's multi-minute
-          // defaults, which otherwise surfaces as delayed/missing emails.
-          connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
-          greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
-          socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
-          auth:
-            env.SMTP_USER && env.SMTP_PASS
-              ? { user: env.SMTP_USER, pass: env.SMTP_PASS }
-              : undefined,
-        })
-      : null;
+    const host = env.SMTP_HOST?.trim() || undefined;
+    this.smtpConfigured = Boolean(host);
+    if (!host) {
+      this.transporter = null;
+      return;
+    }
+    this.transporter = nodemailer.createTransport({
+      host,
+      // SMTP_PORT is optional; when omitted, fall back to the conventional port
+      // implied by SMTP_SECURE (465 for implicit TLS, 587 for STARTTLS) so real
+      // relays work with the minimum set of variables.
+      port: env.SMTP_PORT ?? (env.SMTP_SECURE ? 465 : 587),
+      secure: env.SMTP_SECURE,
+      // A wedged or restarting SMTP server must fail fast instead of
+      // holding the awaited send open for nodemailer's multi-minute
+      // defaults, which otherwise surfaces as delayed/missing emails.
+      connectionTimeout: SMTP_CONNECTION_TIMEOUT_MS,
+      greetingTimeout: SMTP_GREETING_TIMEOUT_MS,
+      socketTimeout: SMTP_SOCKET_TIMEOUT_MS,
+      auth:
+        env.SMTP_USER && env.SMTP_PASS ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+    });
   }
 
   async send(input: SendEmailInput): Promise<void> {
     if (!this.transporter) {
+      if (env.NODE_ENV === 'production') {
+        // Never report success for an email that cannot be delivered. Callers
+        // map this into a clear API error so a broken SMTP setup cannot
+        // silently swallow registration/verification emails.
+        logger.error(
+          { to: input.to },
+          'SMTP is not configured; email not delivered. Set SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS, and SMTP_FROM.',
+        );
+        throw new Error('SMTP is not configured.');
+      }
       this.logInDevelopment(input);
       return;
     }
@@ -61,7 +77,7 @@ export class EmailService {
     for (let attempt = 1; attempt <= SMTP_MAX_ATTEMPTS; attempt += 1) {
       try {
         await this.transporter.sendMail({
-          from: env.EMAIL_FROM,
+          from: env.SMTP_FROM?.trim() || env.EMAIL_FROM?.trim() || DEFAULT_EMAIL_FROM,
           to: input.to,
           subject: input.subject,
           text: input.text,
@@ -103,18 +119,14 @@ export class EmailService {
   }
 
   private logInDevelopment(input: SendEmailInput): void {
-    if (env.NODE_ENV !== 'production') {
-      logger.info(
-        {
-          to: input.to,
-          subject: input.subject,
-          preview: this.extractLink(input.text) ?? input.text.slice(0, 200),
-        },
-        '[dev] Email generated (SMTP not configured)',
-      );
-    } else {
-      logger.warn({ to: input.to }, 'SMTP not configured; email not delivered');
-    }
+    logger.info(
+      {
+        to: input.to,
+        subject: input.subject,
+        preview: this.extractLink(input.text) ?? input.text.slice(0, 200),
+      },
+      '[dev] Email generated (SMTP not configured)',
+    );
   }
 
   private extractLink(text: string): string | null {

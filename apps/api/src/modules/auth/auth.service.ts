@@ -7,6 +7,7 @@ import type {
   ChangePasswordInput,
 } from '@longeviq/shared';
 import { AppError } from '../../utils/app-error.js';
+import { logger } from '../../utils/logger.js';
 import { env } from '../../config/env.js';
 import type { AuthRepository } from './auth.repository.types.js';
 import type { TokenService } from './token.service.js';
@@ -363,7 +364,20 @@ export class AuthService {
 
     const baseUrl = ctx.baseUrl || env.FRONTEND_URL;
     const verificationUrl = this.tokens.buildVerificationUrl(baseUrl, token);
-    await this.emails.sendVerificationEmail(user.email, verificationUrl);
+    try {
+      await this.emails.sendVerificationEmail(user.email, verificationUrl);
+    } catch (error) {
+      // Never report a successful registration when the verification email was
+      // not delivered. Map the raw nodemailer error into an operational AppError
+      // so the client (and production API) get a clear, actionable message.
+      logger.error({ err: error, to: user.email }, 'Verification email delivery failed');
+      const notConfigured =
+        error instanceof Error && error.message.includes('SMTP is not configured');
+      const message = notConfigured
+        ? 'The server cannot send verification emails because SMTP is not configured. Please contact the administrator.'
+        : 'We could not deliver the verification email right now. Please check the SMTP configuration and try again.';
+      throw new AppError(503, 'EMAIL_DELIVERY_FAILED', message);
+    }
     return verificationUrl;
   }
 

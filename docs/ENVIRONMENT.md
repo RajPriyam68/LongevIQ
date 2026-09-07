@@ -27,7 +27,7 @@ missing required variables cause the process to **fail fast**.
 | `SMTP_PORT`              | no       | `587`                  | SMTP port                                              |
 | `SMTP_SECURE`            | no       | `false`                | Use TLS on SMTP connection                             |
 | `SMTP_USER` / `SMTP_PASS`| no       | *(empty)*              | SMTP credentials                                       |
-| `EMAIL_FROM`             | no       | `LongevIQ <no-reply@longeviq.dev>` | From address for outgoing email         |
+| `SMTP_FROM`              | no       | `LongevIQ <no-reply@longeviq.dev>` | From address for outgoing email (deprecated alias `EMAIL_FROM` is still honored) |
 | `STORAGE_UPLOAD_DIR`     | no       | `<api cwd>/.uploads`   | Directory for locally stored report files             |
 | `MAX_UPLOAD_BYTES`       | no       | `10485760`             | Max uploaded report file size (bytes)                 |
 | `S3_BUCKET`              | no       | *(empty)*              | S3 bucket; when set, report files go to S3 instead of disk |
@@ -52,7 +52,8 @@ missing required variables cause the process to **fail fast**.
 
 > **Development email fallback.** When `SMTP_HOST` is unset, verification emails are logged to the
 > server console and the verification link is returned in the API response. This only happens when
-> `NODE_ENV !== 'production'`; production never returns verification URLs.
+> `NODE_ENV !== 'production'`; production never returns verification URLs and refuses to register a
+> user when SMTP is unset or unreachable instead of silently skipping delivery.
 
 > **OCR assets.** The English tesseract model (`eng.traineddata.gz`) and the DejaVu Sans font are
 > vendored under `apps/api/assets` so OCR works deterministically in CI, containers, and the preview

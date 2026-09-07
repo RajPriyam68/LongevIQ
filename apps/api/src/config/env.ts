@@ -73,7 +73,11 @@ const envSchema = z.object({
     .transform((value) => value === 'true'),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().default('LongevIQ <no-reply@longeviq.example.com>'),
+  // Canonical From address for outgoing email. EMAIL_FROM is kept as a
+  // deprecated alias so existing deployments keep working; SMTP_FROM wins when
+  // both are set (resolution happens in email.service.ts).
+  SMTP_FROM: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
 
   // Sprint 3: medical report storage. When S3_BUCKET is set, files are stored in S3;
   // otherwise they are written to a local directory (STORAGE_UPLOAD_DIR).

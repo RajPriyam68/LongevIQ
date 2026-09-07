@@ -8,6 +8,12 @@ import { FakeAuthRepository, FakeEmailService } from './fakes.js';
 
 const ctx = { ipAddress: '127.0.0.1', userAgent: 'vitest', baseUrl: 'http://localhost:3000' };
 
+class FailingEmailService extends FakeEmailService {
+  override sendVerificationEmail(): Promise<void> {
+    return Promise.reject(new Error('SMTP rejected the message'));
+  }
+}
+
 describe('AuthService', () => {
   let repository: FakeAuthRepository;
   let emails: FakeEmailService;
@@ -62,6 +68,23 @@ describe('AuthService', () => {
           ctx,
         ),
       ).rejects.toMatchObject({ statusCode: 409, code: 'CONFLICT' });
+    });
+
+    it('surfaces a clear error when the verification email cannot be delivered', async () => {
+      const svc = new AuthService(
+        repository,
+        new TokenService(),
+        new FailingEmailService(),
+        new PasswordService(),
+        new GoogleOAuthService(),
+      );
+
+      await expect(
+        svc.register(
+          { email: 'fail@example.com', password: 'Str0ngPass!', firstName: 'F', lastName: 'X' },
+          ctx,
+        ),
+      ).rejects.toMatchObject({ statusCode: 503, code: 'EMAIL_DELIVERY_FAILED' });
     });
   });
 

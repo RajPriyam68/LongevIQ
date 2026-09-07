@@ -7,6 +7,7 @@ export type ErrorCode =
   | 'CONFLICT'
   | 'RATE_LIMITED'
   | 'PAYLOAD_TOO_LARGE'
+  | 'EMAIL_DELIVERY_FAILED'
   | 'INTERNAL_ERROR';
 
 export class AppError extends Error {
