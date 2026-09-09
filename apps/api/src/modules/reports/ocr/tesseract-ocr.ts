@@ -8,6 +8,7 @@ import type { OcrConfig } from './ocr-config.js';
  */
 export class TesseractOcr {
   private workerPromise: Promise<Worker> | null = null;
+  private currentWorker: Worker | null = null;
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly config: OcrConfig) {}
@@ -21,6 +22,7 @@ export class TesseractOcr {
   async dispose(): Promise<void> {
     const worker = await this.workerPromise;
     this.workerPromise = null;
+    this.currentWorker = null;
     if (worker) {
       await worker.terminate();
     }
@@ -38,11 +40,27 @@ export class TesseractOcr {
         langPath: this.config.langPath,
         gzip: true,
         logger: () => undefined,
-      }).catch((error) => {
-        this.workerPromise = null;
-        throw error;
-      });
+        errorHandler: () => this.onWorkerError(),
+      })
+        .then((worker) => {
+          this.currentWorker = worker;
+          return worker;
+        })
+        .catch((error) => {
+          this.workerPromise = null;
+          this.currentWorker = null;
+          throw error;
+        });
     }
     return this.workerPromise;
+  }
+
+  private onWorkerError(): void {
+    const worker = this.currentWorker;
+    this.workerPromise = null;
+    this.currentWorker = null;
+    if (worker) {
+      void worker.terminate().catch(() => undefined);
+    }
   }
 }

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import PDFDocument from 'pdfkit';
 import { GlobalFonts, createCanvas } from '@napi-rs/canvas';
 import { ReportOcrService } from '../src/modules/reports/ocr/report-ocr.js';
+import { TesseractOcr } from '../src/modules/reports/ocr/tesseract-ocr.js';
 import type { OcrConfig } from '../src/modules/reports/ocr/ocr-config.js';
 import { extractPdfText, loadPdfDocument } from '../src/modules/reports/ocr/pdf-text-extractor.js';
 
@@ -60,6 +61,28 @@ describeOcr('ReportOcrService (real tesseract)', () => {
       await ocr.dispose();
     }
   }, 30_000);
+});
+
+describeOcr('TesseractOcr (real worker)', () => {
+  it('does not crash the process when the worker rejects a corrupt image', async () => {
+    const config: OcrConfig = {
+      langPath: tessdataDir,
+      minTextLength: 60,
+      maxPages: 3,
+      scale: 2,
+      maxImageDimension: 3000,
+    };
+    const corruptPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const ocr = new TesseractOcr(config);
+    try {
+      await expect(ocr.recognize(corruptPng)).rejects.toBeTruthy();
+    } finally {
+      await ocr.dispose();
+    }
+  }, 60_000);
 });
 
 describe('extractPdfText (digital PDF)', () => {
