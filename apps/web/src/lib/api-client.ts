@@ -64,11 +64,14 @@ apiClient.interceptors.response.use(
     const config = error.config as RetryableConfig | undefined;
     const status = error.response?.status ?? 0;
 
-    const hasRefreshCookie =
-      typeof document !== 'undefined' &&
-      document.cookie.split(';').some((part) => part.trim().startsWith('lq_refresh='));
+    // The refresh token lives in an httpOnly cookie (lq_refresh) that is never
+    // visible to document.cookie, so gate the refresh on the session state we
+    // can observe: a persisted access token means the user believes they are
+    // signed in. If the refresh cookie is gone, /auth/refresh answers 401 and
+    // the session is cleared instead of leaving the user stuck on stale UI.
+    const hasActiveSession = useAuthStore.getState().accessToken !== null;
 
-    if (status === 401 && config && !config._retry && hasRefreshCookie) {
+    if (status === 401 && config && !config._retry && hasActiveSession) {
       config._retry = true;
       const refreshed = await refreshAccessToken();
       if (refreshed) {

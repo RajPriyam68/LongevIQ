@@ -149,7 +149,20 @@ describe('api-client', () => {
     expect(useAuthStore.getState().accessToken).toBeNull();
   });
 
-  it('does not attempt refresh when no refresh cookie is present', async () => {
+  it('refreshes on a 401 when the refresh cookie is not visible to document.cookie', async () => {
+    vi.stubGlobal('document', { cookie: '' });
+    const { calls } = installAdapter();
+
+    const result = await apiGet<{ ok: boolean }>('/users/me');
+
+    expect(result).toEqual({ ok: true });
+    expect(useAuthStore.getState().accessToken).toBe('fresh-token');
+    expect(calls.filter((url) => url === '/auth/refresh')).toHaveLength(1);
+    expect(calls.filter((url) => url === '/users/me')).toHaveLength(2);
+  });
+
+  it('does not attempt refresh when the user is signed out', async () => {
+    useAuthStore.getState().clearSession();
     vi.stubGlobal('document', { cookie: '' });
     const { calls } = installAdapter();
 
@@ -161,6 +174,7 @@ describe('api-client', () => {
   });
 
   it('isApiClientError narrows rejected errors', async () => {
+    useAuthStore.getState().clearSession();
     vi.stubGlobal('document', { cookie: '' });
     installAdapter();
     try {
